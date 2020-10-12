@@ -5,10 +5,17 @@ class OptimizationProblem:
     def __init__(self, c_value, A_value, b_value):
         self.status = []
         self.coeficient_validation(c_value, A_value, b_value)
+        self.problem_integrity_validation()
 
     def coeficient_validation(self, c_value, A_value, b_value):
         if c_value :
             self.objective_coeficient = c_value
-            self.status.append("Successfuly acquired objective coeficient")
+            self.status.append("[OK] Successfuly acquired objective coeficient")
         else:
-            self.status.append("Undefined objective coeficient")
+            self.status.append("[ERROR] Undefined objective coeficient")
+
+    def problem_integrity_validation(self):
+        if any("[ERROR]" in status for status in self.status):
+            self.status.append("[ERROR] Optimization problem creation failed")
+        else:
+            self.status.append("[OK] Optimization problem creation succeeded")
