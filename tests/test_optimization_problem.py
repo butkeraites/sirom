@@ -1,5 +1,5 @@
 import pytest
-from sirom.optimization_problem import OptimizationProblem
+from sirom.code.optimization_problem import OptimizationProblem
 
 c_value = [3,1] #[x,y]
 A_value = [[1,1],[1,0],[0,1],[-1,0],[0,-1]] #[x,y]

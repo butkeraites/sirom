@@ -28,3 +28,10 @@ class MiniOrtoolsSolver:
         n_var = len(self.problem.coeficient['objective'])
         self.variables = [self.solver.NumVar(0, self.solver.infinity(), "x{}".format(str(id))) for id in range(n_var)]
         self.status.append("[OK] Variables creation succeeded")
+        self.status.append("[INFO] Number of variables: {}".format(self.solver.NumConstraints()))
+        self.__create_constraints()
+
+    def __create_constraints(self):
+        self.constraints = []
+        
+        self.status.append("[OK] Constraints creation succeeded")

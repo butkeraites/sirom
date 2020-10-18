@@ -1,6 +1,6 @@
 import pytest
-from sirom.optimization_problem import OptimizationProblem
-from sirom.mini_ortools_solver import MiniOrtoolsSolver
+from sirom.code.optimization_problem import OptimizationProblem
+from sirom.code.mini_ortools_solver import MiniOrtoolsSolver
 
 c_value = [3,1] #[x,y]
 A_value = [[1,1],[1,0],[0,1],[-1,0],[0,-1]] #[x,y]
@@ -19,3 +19,7 @@ def test_mini_ortools_solver_wrong_solver_selection():
 def test_mini_ortools_solver_creating_variables():
     mini_ortool = MiniOrtoolsSolver(optimization_problem)
     assert "[OK] Variables creation succeeded" in mini_ortool.status
+
+def test_mini_ortools_solver_creating_constraints():
+    mini_ortool = MiniOrtoolsSolver(optimization_problem)
+    assert "[OK] Constraints creation succeeded" in mini_ortool.status
