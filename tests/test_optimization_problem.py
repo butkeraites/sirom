@@ -13,17 +13,17 @@ def test_optimization_problem_failed():
     opt_problem = OptimizationProblem("",A_value,b_value)
     assert "[ERROR] Optimization problem creation failed" in opt_problem.status
 
-def test_optimization_problem_objective_coeficient_empty():
+def test_optimization_problem_objective_coefficient_empty():
     opt_problem = OptimizationProblem("",A_value,b_value)
-    assert "[ERROR] Undefined objective coeficient" in opt_problem.status
+    assert "[ERROR] Undefined objective coefficient" in opt_problem.status
 
-def test_optimization_problem_constraint_coeficient_empty():
+def test_optimization_problem_constraint_coefficient_empty():
     opt_problem = OptimizationProblem(c_value,"",b_value)
-    assert "[ERROR] Undefined constraint coeficient" in opt_problem.status
+    assert "[ERROR] Undefined constraint coefficient" in opt_problem.status
 
-def test_optimization_problem_rhs_coeficient_empty():
+def test_optimization_problem_rhs_coefficient_empty():
     opt_problem = OptimizationProblem(c_value,A_value,"")
-    assert "[ERROR] Undefined rhs coeficient" in opt_problem.status
+    assert "[ERROR] Undefined rhs coefficient" in opt_problem.status
 
 def test_optimization_problem_dimension_validation_error():
     opt_problem = OptimizationProblem("",A_value,b_value)
