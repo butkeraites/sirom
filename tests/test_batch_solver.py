@@ -15,6 +15,54 @@ def test_batch_solver_failed():
     opt_problem = ProblemsBucket("","","","","")
     assert "[ERROR] Optimization batch creation failed" in opt_problem.status
 
-def test_batch_solver_without_objective_coefficient():
+def test_batch_solver_undefined_objective_coefficient():
     opt_problem = ProblemsBucket("","","","","")
+    assert "[ERROR] Undefined objective coefficient" in opt_problem.status
+
+def test_batch_solver_undefined_lb_constraint_coefficient():
+    opt_problem = ProblemsBucket("","","","","")
+    assert "[ERROR] Undefined lb_constraint coefficient" in opt_problem.status
+
+def test_batch_solver_undefined_ub_constraint_coefficient():
+    opt_problem = ProblemsBucket("","","","","")
+    assert "[ERROR] Undefined ub_constraint coefficient" in opt_problem.status
+
+def test_batch_solver_undefined_lb_rhs_coefficient():
+    opt_problem = ProblemsBucket("","","","","")
+    assert "[ERROR] Undefined lb_rhs coefficient" in opt_problem.status
+
+def test_batch_solver_undefined_ub_rhs_coefficient():
+    opt_problem = ProblemsBucket("","","","","")
+    assert "[ERROR] Undefined ub_rhs coefficient" in opt_problem.status
+
+def test_batch_solver_failed_acquiring_objective_coefficient():
+    opt_problem = ProblemsBucket({'oi' : ""},"","","","")
     assert "[ERROR] Failed acquiring objective coefficient" in opt_problem.status
+
+def test_batch_solver_failed_acquiring_lb_constraint_coefficient():
+    opt_problem = ProblemsBucket("",{'oi' : ""},"","","")
+    assert "[ERROR] Failed acquiring lb_constraint coefficient" in opt_problem.status
+
+def test_batch_solver_failed_acquiring_ub_constraint_coefficient():
+    opt_problem = ProblemsBucket("","",{'oi' : ""},"","")
+    assert "[ERROR] Failed acquiring ub_constraint coefficient" in opt_problem.status
+
+def test_batch_solver_failed_acquiring_lb_rhs_coefficient():
+    opt_problem = ProblemsBucket("","","",{'oi' : ""},"")
+    assert "[ERROR] Failed acquiring lb_rhs coefficient" in opt_problem.status
+
+def test_batch_solver_failed_acquiring_ub_rhs_coefficient():
+    opt_problem = ProblemsBucket("","","","",{'oi' : ""})
+    assert "[ERROR] Failed acquiring ub_rhs coefficient" in opt_problem.status
+
+def test_batch_solver_undefined_number_of_cenarios():
+    opt_problem_batch = ProblemsBucket(c_value,lb_A_value, ub_A_value, lb_b_value, ub_b_value, "")
+    assert "[ERROR] Undefined number of cenarios" in opt_problem_batch.status
+
+def test_batch_solver_float_number_of_cenarios():
+    opt_problem_batch = ProblemsBucket(c_value,lb_A_value, ub_A_value, lb_b_value, ub_b_value, 100.0)
+    assert "[ERROR] Failed acquiring number of cenarios" in opt_problem_batch.status
+
+def test_batch_solver_negative_number_of_cenarios():
+    opt_problem_batch = ProblemsBucket(c_value,lb_A_value, ub_A_value, lb_b_value, ub_b_value, -1)
+    assert "[ERROR] Failed acquiring number of cenarios" in opt_problem_batch.status
