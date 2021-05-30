@@ -38,12 +38,12 @@ class ProblemsBucket:
             ub_rhs_coefficients, ub_rhs_dimension = self.coefficient["ub_rhs"].shape
             if  objective_coefficients     == lb_constraint_coefficients \
             and lb_constraint_coefficients == ub_constraint_coefficients \
-            and lb_constraint_equations   == ub_constraint_equations \
-            and ub_constraint_equations   == ub_rhs_coefficients \
-            and lb_rhs_dimension          == ub_rhs_dimension \
+            and lb_constraint_equations    == ub_constraint_equations \
+            and ub_constraint_equations    == ub_rhs_coefficients \
+            and lb_rhs_dimension           == ub_rhs_dimension \
             and lb_rhs_coefficients        == ub_rhs_coefficients \
-            and objective_equations       == 1 \
-            and ub_rhs_dimension          == 1:
+            and objective_equations        == 1 \
+            and ub_rhs_dimension           == 1:
                 self.status.append("[OK] Optimization batch creation succeeded")
             else:
                 self.status.append("[ERROR] Dimension inconsistency detected")
