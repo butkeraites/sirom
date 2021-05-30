@@ -15,7 +15,7 @@ class ProblemsBucket:
         self.__number_of_cenarios_validation(number_of_cenarios)
         self.__dimension_validation()
         self.__problem_integrity_validation()
-        self.__generate_all_coefficients()
+        #self.__generate_all_coefficients()
 
     def __coefficient_validation(self, coefficient, identification):
         if coefficient :
@@ -64,5 +64,5 @@ class ProblemsBucket:
         else:
             self.status.append("[OK] Optimization batch creation succeeded")
     
-    def __generate_all_coefficients(self):
+#    def __generate_all_coefficients(self):
        #TODO: GENERATE ALL COEFFICIENTS 
