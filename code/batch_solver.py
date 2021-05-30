@@ -65,4 +65,4 @@ class ProblemsBucket:
             self.status.append("[OK] Optimization batch creation succeeded")
     
     def __generate_all_coefficients(self):
-        
+       #TODO: GENERATE ALL COEFFICIENTS 
