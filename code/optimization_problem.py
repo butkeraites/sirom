@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+
 class OptimizationProblem:
     'Class that will be served by http request to Optimization Workers. We are going to solve a problem of:'
     'min c * x : S.t. A * x - b <= 0'
@@ -12,7 +14,7 @@ class OptimizationProblem:
         self.__problem_integrity_validation()
 
     def __coefficient_validation(self, coefficient, identification):
-        if coefficient :
+        if isinstance(coefficient,(list,pd.core.series.Series,np.ndarray)) :
             try:
                 self.coefficient[identification] = pd.DataFrame(coefficient)
                 self.status.append("[OK] Successfuly acquired {} coefficient".format(identification))
