@@ -6,6 +6,7 @@ import lhsmdu
 
 from sirom.code.optimization_problem import OptimizationProblem
 from sirom.code.mini_ortools_solver import MiniOrtoolsSolver
+from sirom.code.cluster_tree import ClusterTree
 
 class ProblemsBucket:
     'Class that will generate and storage all instances used to solve a problem like:'
@@ -104,19 +105,86 @@ class ProblemsBucket:
             self.results.append(mini_ortool.solution)
 
     def cluster_and_selection(self):
+        def calculate_wcss(points_coordinates):
+            kmeans = KMeans(n_clusters=1, random_state=0).fit(points_coordinates)
+            return kmeans.inertia_
+
+        def close_nodes(nodes):
+            max_number_of_points = {
+                'id': -1,
+                'number_of_points': 0
+            }
+            max_wcss = {
+                'id': -1,
+                'wcss': 0
+            }
+            for node in range(len(nodes)):
+                if nodes[node]['number_of_points'] > max_number_of_points['number_of_points']:    
+                    max_number_of_points = {
+                        'id': node,
+                        'number_of_points': nodes[node]['number_of_points']
+                    }
+                if nodes[node]['wcss'] > max_wcss['wcss']:
+                    max_wcss = {
+                        'id': node,
+                        'wcss': nodes[node]['wcss']
+                    }
+            for node in range(len(nodes)):
+                if (node != max_number_of_points['id']) & \
+                    (node != max_wcss['id']):
+                    nodes[node]['replicate'] = False
+            return nodes
+
+        def nodes_can_be_divided(cluster_tree):
+            all_nodes = cluster_tree.get_all_nodes()
+            for node in all_nodes:
+                if cluster_tree.tree_nodes[node]['data']['replicate']:
+                    return True
+            return False
+
+        def divide_nodes(cluster_tree, number_of_clusters):
+            parent_nodes = cluster_tree.get_all_nodes()
+            for parent_node_id in parent_nodes:
+                parent_node = cluster_tree.tree_nodes[parent_node_id]['data']
+                if parent_node['replicate']:
+                    nodes = []
+                    kmeans = KMeans(n_clusters=number_of_clusters, random_state=0).fit(parent_node['points_coordinates'])
+                    for node in range(number_of_clusters):
+                        res = [x for x, z in enumerate(kmeans.labels_) if z == node]
+                        if len(res) <= number_of_clusters:
+                            nodes.append({
+                                'replicate': False,
+                                'points_coordinates': parent_node['points_coordinates'][res],
+                                'points_ids': [parent_node['points_ids'][ids] for ids in res],
+                                'number_of_points': len(res),
+                                'wcss': calculate_wcss(parent_node['points_coordinates'][res])
+                            })
+                        else:
+                            nodes.append({
+                                'replicate': True,
+                                'points_coordinates': parent_node['points_coordinates'][res],
+                                'points_ids': [parent_node['points_ids'][ids] for ids in res],
+                                'number_of_points': len(res),
+                                'wcss': calculate_wcss(parent_node['points_coordinates'][res])
+                            })
+                    nodes = close_nodes(nodes)
+                    cluster_tree.create_nodes(parent_node_id,nodes)
+                    cluster_tree.tree_nodes[parent_node_id]['data']['replicate'] = False
+
+ 
         if self.results :
-            self.cluster_tree = []
+            number_of_clusters = 3
             root_node = []
             for result in self.results:
                 if result['solve_status'] == 0:
                     root_node.append([result['objective_value']]+result['constraint'])
-            self.cluster_tree.append({
-                'node_status': 'open',
+            self.cluster_tree = ClusterTree({
                 'replicate': True,
-                'points': np.arange(len(root_node)),
-                'coordinates': np.matrix(root_node)
+                'points_ids': [point_id for point_id in range(len(root_node))],
+                'points_coordinates': np.matrix(root_node),
+                'number_of_points': len(root_node),
+                'wcss': calculate_wcss(np.matrix(root_node))
             })
-            kmeans = KMeans(n_clusters=3, random_state=0).fit(self.cluster_tree[0]['coordinates'])
-            #TODO: CONTINUE TO CALCULATE WCSS FOR EACH CLUSTER AND CONTINUE SIROM
-        else:
-            self.status.append("[ERROR] Solve process must be succsessfully executed first.")
+            while nodes_can_be_divided(self.cluster_tree):
+                divide_nodes(self.cluster_tree, number_of_clusters)
+            self.cluster_tree.from_root_to_leafs()
