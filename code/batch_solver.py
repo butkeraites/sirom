@@ -1,8 +1,14 @@
-import pandas as pd
+from numpy.core import numeric
+from numpy.core.fromnumeric import mean
 import numpy as np
 
+import pandas as pd
+
+from datetime import date
+import time
+
 from sklearn.cluster import KMeans
-import lhsmdu
+from smt.sampling_methods import LHS
 
 from sirom.code.optimization_problem import OptimizationProblem
 from sirom.code.mini_ortools_solver import MiniOrtoolsSolver
@@ -73,35 +79,55 @@ class ProblemsBucket:
             self.status.append("[OK] Optimization batch creation succeeded")
             self.__generate_all_coefficients()
     
-    def __generate_all_coefficients(self):
+    def __generate_coefficients(self, number_of_scenarios):
         def generate_constraint_coefficient():
             lb_constraint_equations, lb_constraint_coefficients = self.coefficient["lb_constraint"].shape
-            scenarios_delta = lhsmdu.sample(lb_constraint_equations * lb_constraint_coefficients, self.number_of_scenarios) # Latin Hypercube Sampling of two variables
+            xlimits = np.array([[0.0, 1.0]]*(lb_constraint_equations * lb_constraint_coefficients))
+            sampling = LHS(xlimits=xlimits)
+            print('[{}] Coefficient generation'.format(date.today()))
+            tic = time.time()
+            scenarios_delta = sampling(number_of_scenarios)
+            toc = time.time()
+            print('[{}] Duration: {}'.format(date.today(),toc-tic))
             scenarios_delta_reshaped = np.array(scenarios_delta.transpose())
-            scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(self.number_of_scenarios, lb_constraint_equations, lb_constraint_coefficients)
-            self.coefficient['scenarios_constraint'] = []
-            for scenario_delta_reshaped in range(self.number_of_scenarios):
-                self.coefficient['scenarios_constraint'].append(self.coefficient["lb_constraint"] + (self.coefficient["ub_constraint"]-self.coefficient["lb_constraint"])*scenarios_delta_reshaped[scenario_delta_reshaped])
+            scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(number_of_scenarios, lb_constraint_equations, lb_constraint_coefficients)
+            scenarios_constraint = []
+            for scenario_delta_reshaped in range(number_of_scenarios):
+                scenarios_constraint.append(self.coefficient["lb_constraint"] + (self.coefficient["ub_constraint"]-self.coefficient["lb_constraint"])*scenarios_delta_reshaped[scenario_delta_reshaped])
+            return scenarios_constraint
         
         def generate_rhs_coefficient():
             lb_rhs_equations, lb_rhs_coefficients = self.coefficient["lb_rhs"].shape
-            scenarios_delta = lhsmdu.sample(lb_rhs_equations * lb_rhs_coefficients, self.number_of_scenarios) # Latin Hypercube Sampling of two variables
+            xlimits = np.array([[0.0, 1.0]]*(lb_rhs_equations * lb_rhs_coefficients))
+            sampling = LHS(xlimits=xlimits)
+            print('[{}] RHS generation'.format(date.today()))
+            tic = time.time()
+            scenarios_delta = sampling(number_of_scenarios)
+            toc = time.time()
+            print('[{}] Duration: {}'.format(date.today(),toc-tic))
             scenarios_delta_reshaped = np.array(scenarios_delta.transpose())
-            scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(self.number_of_scenarios, lb_rhs_equations, lb_rhs_coefficients)
-            self.coefficient['scenarios_rhs'] = []
-            for scenario_delta_reshaped in range(self.number_of_scenarios):
-                self.coefficient['scenarios_rhs'].append(self.coefficient["lb_rhs"] + (self.coefficient["ub_rhs"]-self.coefficient["lb_rhs"])*scenarios_delta_reshaped[scenario_delta_reshaped])
+            scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(number_of_scenarios, lb_rhs_equations, lb_rhs_coefficients)
+            scenarios_rhs = []
+            for scenario_delta_reshaped in range(number_of_scenarios):
+                scenarios_rhs.append(self.coefficient["lb_rhs"] + (self.coefficient["ub_rhs"]-self.coefficient["lb_rhs"])*scenarios_delta_reshaped[scenario_delta_reshaped])
+            return scenarios_rhs
 
-        generate_constraint_coefficient()
-        generate_rhs_coefficient()
+        return generate_constraint_coefficient(), generate_rhs_coefficient()
+
+    def __generate_all_coefficients(self):
+        self.coefficient['scenarios_constraint'], self.coefficient['scenarios_rhs'] = self.__generate_coefficients(self.number_of_scenarios)
     
     def solve(self):
         c_value = np.array(self.coefficient["objective"])
+        print('[{}] Solve process started'.format(date.today()))
         for scenario in range(self.number_of_scenarios):
+            tic = time.time()
             A_value = np.matrix(self.coefficient['scenarios_constraint'][scenario])
             b_value = np.array(self.coefficient['scenarios_rhs'][scenario])
             optimization_problem = OptimizationProblem(c_value,A_value,b_value)
             mini_ortool = MiniOrtoolsSolver(optimization_problem)
+            toc = time.time()
+            print('[{}] Scenario {} | Duration: {}'.format(date.today(),scenario,toc-tic))
             self.results.append(mini_ortool.solution)
 
     def cluster_and_selection(self):
@@ -171,7 +197,7 @@ class ProblemsBucket:
                     cluster_tree.create_nodes(parent_node_id,nodes)
                     cluster_tree.tree_nodes[parent_node_id]['data']['replicate'] = False
 
- 
+
         if self.results :
             number_of_clusters = 3
             root_node = []
@@ -185,6 +211,54 @@ class ProblemsBucket:
                 'number_of_points': len(root_node),
                 'wcss': calculate_wcss(np.matrix(root_node))
             })
+            print('[{}] Cluser and Selection started'.format(date.today()))
             while nodes_can_be_divided(self.cluster_tree):
+                tic = time.time()
                 divide_nodes(self.cluster_tree, number_of_clusters)
-            self.cluster_tree.from_root_to_leafs()
+                toc = time.time()
+                print('[{}] Duration: {}'.format(date.today(),toc-tic))
+            
+
+    def solve_cluster_tree(self):
+        def solve_optimization_problem(scenarios):
+            c_value = np.array(self.coefficient["objective"])    
+            
+            A_value = -1
+            
+            print('[{}] Node optimization started'.format(date.today()))
+            tic = time.time()
+            for scenario in scenarios:
+                if isinstance(A_value, int):
+                    A_value = np.matrix(self.coefficient['scenarios_constraint'][scenario])
+                    b_value = np.array(self.coefficient['scenarios_rhs'][scenario])
+                else:
+                    A_value = np.concatenate((A_value,np.matrix(self.coefficient['scenarios_constraint'][scenario])), axis=0)
+                    b_value = np.concatenate((b_value,np.array(self.coefficient['scenarios_rhs'][scenario])), axis=0)
+            optimization_problem = OptimizationProblem(c_value,A_value,b_value)
+            mini_ortool = MiniOrtoolsSolver(optimization_problem)
+            toc = time.time()
+            print('[{}] Duration: {}'.format(date.today(),toc-tic))
+            return mini_ortool.solution
+
+        all_nodes = self.cluster_tree.get_all_nodes()
+        for node in all_nodes:
+            selected_scenarios = self.cluster_tree.tree_nodes[node]['data']['points_ids']
+            self.cluster_tree.tree_nodes[node]['problem'] = solve_optimization_problem(selected_scenarios)
+            self.results.append(self.cluster_tree.tree_nodes[node]['problem'])
+    
+    def apply_quality_measure(self, number_of_scenarios):
+        scenarios_constraint, scenarios_rhs = self.__generate_coefficients(number_of_scenarios)
+        print('[{}] Quality measure application started'.format(date.today()))
+        for result in self.results:
+            tic = time.time()
+            result_feasibility = []
+            for scenario in range(len(scenarios_constraint)):
+                constraints_evaluation = pd.DataFrame(np.dot(scenarios_constraint[scenario], result['variable']))-scenarios_rhs[scenario]
+                if constraints_evaluation.max().item() > 0:
+                    result_feasibility.append(0)
+                else:
+                    result_feasibility.append(1)
+            mean_result_feasibility = mean(result_feasibility)
+            toc = time.time()
+            print('[{}] Quality measurement evaluated: {} - Elapsed time: {}'.format(date.today(), mean_result_feasibility, toc-tic))
+            result['feasibility_probability'] = mean_result_feasibility
