@@ -1,7 +1,7 @@
 from __future__ import print_function
 import pandas as pd
 from ortools.linear_solver import pywraplp
-from sirom.code.optimization_problem import OptimizationProblem
+from optimization_problem import OptimizationProblem
 
 
 class MiniOrtoolsSolver:

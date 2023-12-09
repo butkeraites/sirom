@@ -1,9 +1,5 @@
-from sirom.code.batch_solver import ProblemsBucket
-from sirom.code.cluster_tree import ClusterTree
+from batch_solver import ProblemsBucket
 
-information = {
-    'name': 'Node test.'
-}
 
 def test_optimization():
     c_value = [-3,-4] #[x,y]

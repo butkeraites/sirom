@@ -10,9 +10,10 @@ import time
 from sklearn.cluster import KMeans
 from smt.sampling_methods import LHS
 
-from sirom.code.optimization_problem import OptimizationProblem
-from sirom.code.mini_ortools_solver import MiniOrtoolsSolver
-from sirom.code.cluster_tree import ClusterTree
+from cluster_tree import ClusterTree
+from mini_ortools_solver import MiniOrtoolsSolver
+from optimization_problem import OptimizationProblem
+
 
 class ProblemsBucket:
     'Class that will generate and storage all instances used to solve a problem like:'
@@ -207,9 +208,9 @@ class ProblemsBucket:
             self.cluster_tree = ClusterTree({
                 'replicate': True,
                 'points_ids': [point_id for point_id in range(len(root_node))],
-                'points_coordinates': np.matrix(root_node),
+                'points_coordinates': np.asarray(root_node),
                 'number_of_points': len(root_node),
-                'wcss': calculate_wcss(np.matrix(root_node))
+                'wcss': calculate_wcss(np.asarray(root_node))
             })
             print('[{}] Cluser and Selection started'.format(date.today()))
             while nodes_can_be_divided(self.cluster_tree):
