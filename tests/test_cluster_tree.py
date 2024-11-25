@@ -1,5 +1,5 @@
 import pytest
-from sirom.code.cluster_tree import ClusterTree
+from code.cluster_tree import ClusterTree
 
 information = {"name": "Node test."}
 

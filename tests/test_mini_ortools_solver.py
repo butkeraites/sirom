@@ -1,10 +1,17 @@
 import pytest
-from sirom.code.optimization_problem import OptimizationProblem
-from sirom.code.mini_ortools_solver import MiniOrtoolsSolver
+import numpy as np
+from code.optimization_problem import OptimizationProblem
+from code.mini_ortools_solver import MiniOrtoolsSolver
 
-c_value = [-3, -4]  # [x,y]
-A_value = [[1, 2], [-3, 1], [1, -1], [-1, 0], [0, -1]]  # [x,y]
-b_value = [14, 0, 2, 0, 0]
+c_value = np.array([-3, -4])  # [x,y]
+A_value = np.matrix([
+    [1, 2], 
+    [-3, 1], 
+    [1, -1], 
+    [-1, 0], 
+    [0, -1]
+])  # [x,y]
+b_value = np.array([14, 0, 2, 0, 0])
 
 
 optimization_problem = OptimizationProblem(c_value, A_value, b_value)
