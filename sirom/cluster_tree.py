@@ -3,7 +3,7 @@ import uuid
 
 import numpy as np
 
-from code.mini_ortools_solver import Solution
+from sirom.mini_ortools_solver import Solution
 
 
 class RootData(TypedDict):

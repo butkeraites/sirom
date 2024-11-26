@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-from code.optimization_problem import OptimizationProblem
-from code.mini_ortools_solver import MiniOrtoolsSolver
+from sirom.optimization_problem import OptimizationProblem
+from sirom.mini_ortools_solver import MiniOrtoolsSolver
 
 c_value = np.array([-3, -4])  # [x,y]
 A_value = np.matrix([

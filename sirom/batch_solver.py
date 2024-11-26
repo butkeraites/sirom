@@ -15,15 +15,74 @@ from .mini_ortools_solver import MiniOrtoolsSolver, Solution
 from .optimization_problem import OptimizationProblem
 
 
-class Coefficients(TypedDict):
-    objective: pd.DataFrame
-    lb_constraint: pd.DataFrame
-    ub_constraint: pd.DataFrame
-    lb_rhs: pd.DataFrame
-    ub_rhs: pd.DataFrame
-    scenarios_constraint: list[pd.DataFrame]
-    scenarios_rhs: list[pd.DataFrame]
+class Coefficients:
+    """Stores and provides access to optimization problem coefficients including objective function,
+    constraints, and scenario data."""
+    
+    def __init__(
+        self,
+        objective: pd.DataFrame,
+        lb_constraint: pd.DataFrame,
+        ub_constraint: pd.DataFrame,
+        lb_rhs: pd.DataFrame,
+        ub_rhs: pd.DataFrame,
+        scenarios_constraint: pd.DataFrame,
+        scenarios_rhs: pd.DataFrame
+    ):
+        """Initialize coefficient matrices and vectors.
+        
+        Args:
+            objective: Objective function coefficients
+            lb_constraint: Lower bound constraint matrix
+            ub_constraint: Upper bound constraint matrix  
+            lb_rhs: Lower bound RHS vector
+            ub_rhs: Upper bound RHS vector
+            scenarios_constraint: Scenario constraint matrices
+            scenarios_rhs: Scenario RHS vectors
+        """
+        self._objective = objective
+        self._lb_constraint = lb_constraint
+        self._ub_constraint = ub_constraint
+        self._lb_rhs = lb_rhs
+        self._ub_rhs = ub_rhs
+        self._scenarios_constraint = scenarios_constraint
+        self._scenarios_rhs = scenarios_rhs
 
+    @property
+    def objective(self) -> pd.DataFrame:
+        """Get objective function coefficients."""
+        return self._objective
+
+    @property
+    def lb_constraint(self) -> pd.DataFrame:
+        """Get lower bound constraint matrix."""
+        return self._lb_constraint
+
+    @property
+    def ub_constraint(self) -> pd.DataFrame:
+        """Get upper bound constraint matrix."""
+        return self._ub_constraint
+
+    @property
+    def lb_rhs(self) -> pd.DataFrame:
+        """Get lower bound RHS vector."""
+        return self._lb_rhs
+
+    @property
+    def ub_rhs(self) -> pd.DataFrame:
+        """Get upper bound RHS vector."""
+        return self._ub_rhs
+
+    @property
+    def scenarios_constraint(self) -> pd.DataFrame:
+        """Get scenario constraint matrices."""
+        return self._scenarios_constraint
+
+    @property
+    def scenarios_rhs(self) -> pd.DataFrame:
+        """Get scenario RHS vectors."""
+        return self._scenarios_rhs
+    
 
 class ProblemsBucket:
     """Class that will generate and storage all instances used to solve a problem like:

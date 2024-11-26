@@ -1,5 +1,5 @@
 import pytest
-from code.batch_solver import ProblemsBucket
+from sirom.batch_solver import ProblemsBucket
 
 number_of_scenarios = 10
 

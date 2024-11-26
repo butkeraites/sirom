@@ -1,12 +1,25 @@
-from typing import List, TypedDict
+from typing import List
 import pandas as pd
 import numpy as np
 
 
-class Coefficient(TypedDict):
-    objective: pd.DataFrame
-    constraint: pd.DataFrame
-    rhs: pd.DataFrame
+class Coefficient:
+    def __init__(self, c, A, b):
+        self._objective = c
+        self._constraint = A
+        self._rhs = b
+
+    @property
+    def objective(self):
+        return self._objective
+
+    @property
+    def constraint(self):
+        return self._constraint
+
+    @property
+    def rhs(self):
+        return self._rhs
 
 
 class OptimizationProblem:
