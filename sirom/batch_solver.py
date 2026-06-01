@@ -107,11 +107,17 @@ class ProblemsBucket:
         ub_b_value: list[Number],
         number_of_scenarios: int = 100,
         number_of_clusters: int = 3,
+        integer_variables: "list[int] | None" = None,
+        solver_selection: "str | None" = None,
     ):
         self.status: list[str] = []
         self.results: list[Solution] = []
         self.number_of_scenarios: int = -1
         self.number_of_clusters: int = number_of_clusters
+        # Integer-variable indices (empty = pure LP) and an optional solver
+        # override; by default the solver is auto-selected per problem.
+        self.integer_variables: list[int] = list(integer_variables or [])
+        self.solver_selection: "str | None" = solver_selection
         c_validated = self.__coefficient_validation(c_value, "objective")
         lb_A_validated = self.__coefficient_validation(lb_A_value, "lb_constraint")
         ub_A_validated = self.__coefficient_validation(ub_A_value, "ub_constraint")
@@ -286,8 +292,12 @@ class ProblemsBucket:
             tic = time.time()
             A_value = np.matrix(self.coefficient.scenarios_constraint[scenario])
             b_value = np.array(self.coefficient.scenarios_rhs[scenario])
-            optimization_problem = OptimizationProblem(c_value, A_value, b_value)
-            mini_ortool = MiniOrtoolsSolver(optimization_problem)
+            optimization_problem = OptimizationProblem(
+                c_value, A_value, b_value, integer_variables=self.integer_variables
+            )
+            mini_ortool = MiniOrtoolsSolver(
+                optimization_problem, self.solver_selection
+            )
             toc = time.time()
             print(
                 "[{}] Scenario {} | Duration: {}".format(
@@ -427,8 +437,12 @@ class ProblemsBucket:
             if scenarios:
                 A_value, b_value = get_A_and_b_values(scenarios)
 
-            optimization_problem = OptimizationProblem(c_value, A_value, b_value)
-            mini_ortool = MiniOrtoolsSolver(optimization_problem)
+            optimization_problem = OptimizationProblem(
+                c_value, A_value, b_value, integer_variables=self.integer_variables
+            )
+            mini_ortool = MiniOrtoolsSolver(
+                optimization_problem, self.solver_selection
+            )
             toc = time.time()
             print("[{}] Duration: {}".format(date.today(), toc - tic))
             return mini_ortool.solution

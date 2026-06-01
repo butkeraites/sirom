@@ -31,8 +31,12 @@ class OptimizationProblem:
         c_value: np.ndarray,
         A_value: np.matrix[np.dtype, np.dtype],
         b_value: np.ndarray,
+        integer_variables: "List[int] | None" = None,
     ):
         self.status: List[str] = []
+        # Indices of decision variables constrained to be integers (empty = pure
+        # LP). Drives solver auto-selection in MiniOrtoolsSolver.
+        self.integer_variables: List[int] = list(integer_variables or [])
         c_validated = self.__coefficient_validation(c_value, "objective")
         A_validated = self.__coefficient_validation(A_value, "constraint")
         b_validated = self.__coefficient_validation(b_value, "rhs")

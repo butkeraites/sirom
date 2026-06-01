@@ -15,18 +15,31 @@ class Solution(TypedDict):
     log: str
 
 
+def select_solver(optimization_problem: OptimizationProblem) -> str:
+    """Pick the right OR-Tools backend for a problem.
+
+    Pure LPs (all-continuous) get GLOP, OR-Tools' fast simplex solver. Problems
+    with integer variables need a MIP backend, so they get SCIP.
+    """
+    if getattr(optimization_problem, "integer_variables", None):
+        return "SCIP"
+    return "GLOP"
+
+
 class MiniOrtoolsSolver:
     "Class that translate a Optimization problem to Ortools framework, solve and retrieve solution"
 
     def __init__(
         self,
         optimization_problem: OptimizationProblem,
-        solver_selection: str = "SCIP",
+        solver_selection: "str | None" = None,
         print_log: bool = False,
     ):
         self.status: List[str] = []
         self.problem: OptimizationProblem = optimization_problem
-        self.solver_selected: str = solver_selection
+        # None -> auto-select (GLOP for LP, SCIP for MILP). An explicit name is
+        # used verbatim, so an unknown name still surfaces a solver-creation error.
+        self.solver_selected: "str | None" = solver_selection
         self.print_log: bool = print_log
         self.__validate_optimization_problem()
 
@@ -46,6 +59,8 @@ class MiniOrtoolsSolver:
         self.__solve()
 
     def __create_solver(self):
+        if self.solver_selected is None:
+            self.solver_selected = select_solver(self.problem)
         self.solver = pywraplp.Solver.CreateSolver(self.solver_selected)
         if self.solver is None:
             self.status.append("[ERROR] Solver creation failed")
@@ -57,8 +72,12 @@ class MiniOrtoolsSolver:
 
     def __create_variables(self):
         n_var = len(self.problem.coefficient.objective)
+        integer = set(self.problem.integer_variables)
+        infinity = self.solver.infinity()
         self.variables = [
-            self.solver.NumVar(0, self.solver.infinity(), "x{}".format(str(id)))
+            self.solver.IntVar(0, infinity, "x{}".format(str(id)))
+            if id in integer
+            else self.solver.NumVar(0, infinity, "x{}".format(str(id)))
             for id in range(n_var)
         ]
         self.status.append("[OK] Variables creation succeeded")

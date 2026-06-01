@@ -83,6 +83,7 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
                 request.ub_b,
                 number_of_scenarios=opts.number_of_scenarios,
                 number_of_clusters=opts.clusters,
+                integer_variables=request.integer_variables,
             )
             if has_errors(bucket.status):
                 raise SolveError(friendly_messages(bucket.status))
