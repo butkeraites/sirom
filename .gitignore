@@ -129,3 +129,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 otm_env/lib64
+
+# Reference paper (kept locally, not committed)
+1-s2.0-S0957417422006947-main.pdf

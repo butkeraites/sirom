@@ -1,0 +1,18 @@
+services:
+  sirom-api:
+    build: .
+    image: sirom-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # Override the executor / limits here if needed, e.g.:
+    # environment:
+    #   SIROM_EXECUTOR: process
+    #   SIROM_WORKERS: "4"
+    #   SIROM_MAX_SCENARIOS: "2000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

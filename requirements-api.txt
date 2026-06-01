@@ -1,0 +1,6 @@
+# Server dependencies for the SIROM HTTP API.
+# Installs the pinned algorithm deps plus the web stack.
+-r requirements.txt
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+pydantic==2.13.4

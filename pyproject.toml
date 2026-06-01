@@ -13,13 +13,20 @@ dependencies = [
     "ortools",
     "scikit-learn",
     "scipy",
+    "smt",
 ]
 
 [project.optional-dependencies]
+api = [
+    "fastapi==0.136.3",
+    "uvicorn[standard]==0.48.0",
+    "pydantic==2.13.4",
+]
 dev = [
     "pytest",
     "mypy",
     "black",
+    "httpx",
 ]
 
 [tool.setuptools.packages.find]
