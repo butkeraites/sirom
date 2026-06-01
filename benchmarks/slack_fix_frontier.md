@@ -17,6 +17,22 @@ feasibility level; objective magnitudes are ~13 at 20×50 and ~32 at 50×150):
 | 20 × 50 (N=300) | 5 | **0.24** [0.17–0.33] | 20.8 → 21.2 | 5/5, 5/5 | 0.041 | 0.224 |
 | 50 × 150 (N=400) | 5 | **0.09** [0.07–0.14] | 14.4 → 15.0 | 5/5, 5/5 | 0.086 | 0.402 |
 
+### Robustness to constraint structure
+
+The rows above all use the default generator (box rows + non-negative coupling,
+mixed-sign objective, ±10% intervals). Repeating at 30×80 (3 seeds each) with
+structurally different problems — `ΔObj%` = trade-off shift relative to the
+objective magnitude:
+
+| structure | Jaccard | range match | mean ΔObj% | max ΔObj% |
+|---|---|---|---|---|
+| mixed-sign constraint coefficients | 0.10 | 3/3, 3/3 | 0.8% | 3.0% |
+| all-negative objective (large sum(x)) | 0.09 | 3/3, 3/3 | 0.2% | 0.8% |
+| wide ±30% uncertainty intervals | 0.09 | 3/3, 3/3 | 1.3% | 4.3% |
+
+Same picture as the default structure: low overlap, exact range match (18/18),
+small trade-off shift — somewhat larger under wide uncertainty.
+
 ## Conclusion
 
 - **Structural change is large, scales with problem size, and is seed-robust.**
@@ -25,11 +41,16 @@ feasibility level; objective magnitudes are ~13 at 20×50 and ~32 at 50×150):
   The error term `b·(sum(x) − 1)` grows with `sum(x)`, so more variables ⇒ more
   cluster-tree divergence ⇒ fewer shared frontier points.
 - **The envelope is invariant** — objective and feasibility ranges matched
-  exactly on *every* seed at *every* size (10/10 at both multi-seed instances).
-- **The trade-off is stable on average; worst-case local shifts grow slowly.**
-  Mean `|ΔObj|` stays small (0.041 → 0.086), but the per-instance max grows
-  (0.224 → 0.402, ~1.3% of the objective at 50×150) and is mixed-sign — neither
-  formula systematically dominates.
+  exactly on *every* seed, *every* size, and *every* constraint structure
+  tested (10/10 across sizes, 18/18 across structures).
+- **The trade-off is stable on average; worst-case shifts are small and
+  structure-dependent.** Mean shift stays a fraction of a percent to ~1.3% of
+  the objective; the worst case is mixed-sign and modest (a few percent), and
+  is largest under wide uncertainty intervals — but never reorders the frontier
+  envelope.
+- **Robust to constraint structure too** — low overlap (~0.1) and the stable
+  envelope/trade-off hold for mixed-sign coefficients, a `sum(x)`-maximizing
+  objective, and wide intervals, not just the default generator.
 
 So the fix is correct and matters increasingly for reproducing *specific*
 solution sets as problems scale, but pre-fix frontiers were not qualitatively
