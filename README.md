@@ -73,26 +73,27 @@ JOB=$(curl -s -X POST localhost:8000/solve -H 'content-type: application/json' \
 curl -s localhost:8000/jobs/$JOB
 ```
 
-A succeeded job returns the frontier (values below are illustrative of the
-*shape* — the trade-off curve, not exact numbers):
+A succeeded job returns the frontier — representative output for the sample
+problem (exact values vary run-to-run with the random sampling):
 
 ```jsonc
 {
   "status": "succeeded",
   "result": {
     "solutions": [
-      {"variables": [/* x* */], "objective_value": 12.5, "feasibility_probability": 0.98},
-      {"variables": [/* x* */], "objective_value":  9.8, "feasibility_probability": 0.55}
+      {"variables": [4.47, 3.95], "objective_value": -29.2, "feasibility_probability": 0.98},
+      {"variables": [5.02, 4.16], "objective_value": -31.7, "feasibility_probability": 0.68},
+      {"variables": [5.15, 4.09], "objective_value": -31.8, "feasibility_probability": 0.63}
     ],
-    "summary": {"scenarios_solved": 50, "candidate_solutions": 2, "best_feasibility": 0.98},
+    "summary": {"scenarios_solved": 60, "candidate_solutions": 27, "best_feasibility": 0.98},
     "warnings": []
   }
 }
 ```
 
-Each entry is a Pareto-optimal trade-off: a cheaper `objective_value` (the cost
-`c·x`) typically buys less robustness, and `feasibility_probability ∈ [0,1]` is
-how often that solution stays feasible across random realizations of the
+Each entry is a Pareto-optimal trade-off: pushing `objective_value` lower (a
+better `c·x`) typically costs robustness, and `feasibility_probability ∈ [0,1]`
+is how often that solution stays feasible across random realizations of the
 uncertain coefficients. **All variables are non-negative (`x ≥ 0`).**
 
 ## Use as a Python library
@@ -101,12 +102,13 @@ uncertain coefficients. **All variables are non-negative (`x ≥ 0`).**
 from sirom.batch_solver import ProblemsBucket
 
 # min c·x  s.t.  A·x ≤ b,  with A ∈ [lb_A, ub_A], b ∈ [lb_b, ub_b], x ≥ 0
+# (this is the /example problem: maximize 3x + 4y under interval uncertainty)
 bucket = ProblemsBucket(
-    c_value=[3, 1],
-    lb_A_value=[[1, 1], [1, 0], [0, 1], [-1, 0], [0, -1]],
-    ub_A_value=[[2, 2], [2, 1], [1, 2], [-1, 0], [0, -1]],
-    lb_b_value=[2, 1, 2, 0, 0],
-    ub_b_value=[3, 2, 3, 0, 0],
+    c_value=[-3, -4],
+    lb_A_value=[[1, 2], [-3, 1], [1, -1], [-1, 0], [0, -1]],
+    ub_A_value=[[1.3, 2.3], [-2.7, 1.2], [1.2, -0.8], [-1, 0], [0, -1]],
+    lb_b_value=[14, 0, 2, 0, 0],
+    ub_b_value=[16, 0, 3, 0, 0],
     number_of_scenarios=100,
     n_jobs=-1,              # parallelize scenario solves across all cores
     # integer_variables=[0],     # -> mixed-integer (auto-uses a MIP solver)
