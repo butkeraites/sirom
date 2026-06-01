@@ -73,22 +73,22 @@ class Coefficients:
         return self._ub_rhs
 
     @property
-    def scenarios_constraint(self) -> pd.DataFrame:
-        """Get scenario constraint matrices."""
+    def scenarios_constraint(self) -> "pd.DataFrame | np.ndarray":
+        """Get scenario constraint matrices (an (N, n_con, n_var) array)."""
         return self._scenarios_constraint
 
     @scenarios_constraint.setter
-    def scenarios_constraint(self, value: pd.DataFrame) -> None:
+    def scenarios_constraint(self, value: "pd.DataFrame | np.ndarray") -> None:
         """Set scenario constraint matrices."""
         self._scenarios_constraint = value
 
     @property
-    def scenarios_rhs(self) -> pd.DataFrame:
-        """Get scenario RHS vectors."""
+    def scenarios_rhs(self) -> "pd.DataFrame | np.ndarray":
+        """Get scenario RHS vectors (an (N, n_con, 1) array)."""
         return self._scenarios_rhs
 
     @scenarios_rhs.setter
-    def scenarios_rhs(self, value: pd.DataFrame) -> None:
+    def scenarios_rhs(self, value: "pd.DataFrame | np.ndarray") -> None:
         """Set scenario RHS vectors."""
         self._scenarios_rhs = value
     
@@ -217,8 +217,8 @@ class ProblemsBucket:
 
     def __generate_coefficients(
         self, number_of_scenarios: int
-    ) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
-        def generate_constraint_coefficient() -> list[pd.DataFrame]:
+    ) -> tuple[np.ndarray, np.ndarray]:
+        def generate_constraint_coefficient() -> np.ndarray:
             (
                 lb_constraint_equations,
                 lb_constraint_coefficients,
@@ -236,21 +236,13 @@ class ProblemsBucket:
             scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(
                 number_of_scenarios, lb_constraint_equations, lb_constraint_coefficients
             )
-            scenarios_constraint: list[pd.DataFrame] = []
-            for scenario_delta_reshaped in range(number_of_scenarios):
-                scenarios_constraint.append(
-                    pd.DataFrame(
-                        self.coefficient.lb_constraint
-                        + (
-                            self.coefficient.ub_constraint
-                            - self.coefficient.lb_constraint
-                        )
-                        * scenarios_delta_reshaped[scenario_delta_reshaped]
-                    )
-                )
-            return scenarios_constraint
+            # lb + (ub - lb) * delta, broadcast across all scenarios at once
+            # -> (N, n_con, n_var). len() and [scenario] indexing are preserved.
+            lower = np.asarray(self.coefficient.lb_constraint, dtype=float)
+            upper = np.asarray(self.coefficient.ub_constraint, dtype=float)
+            return lower[None, :, :] + (upper - lower)[None, :, :] * scenarios_delta_reshaped
 
-        def generate_rhs_coefficient() -> list[pd.DataFrame]:
+        def generate_rhs_coefficient() -> np.ndarray:
             lb_rhs_equations, lb_rhs_coefficients = self.coefficient.lb_rhs.shape
             xlimits = np.array([[0.0, 1.0]] * (lb_rhs_equations * lb_rhs_coefficients))
             sampling = LHS(xlimits=xlimits)
@@ -263,16 +255,11 @@ class ProblemsBucket:
             scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(
                 number_of_scenarios, lb_rhs_equations, lb_rhs_coefficients
             )
-            scenarios_rhs = []
-            for scenario_delta_reshaped in range(number_of_scenarios):
-                scenarios_rhs.append(
-                    self.coefficient.lb_rhs
-                    + (self.coefficient.ub_rhs - self.coefficient.lb_rhs)
-                    * scenarios_delta_reshaped[scenario_delta_reshaped]
-                )
-            return scenarios_rhs
+            lower = np.asarray(self.coefficient.lb_rhs, dtype=float)
+            upper = np.asarray(self.coefficient.ub_rhs, dtype=float)
+            return lower[None, :, :] + (upper - lower)[None, :, :] * scenarios_delta_reshaped
 
-        coefficients: tuple[list[pd.DataFrame], list[pd.DataFrame]] = (
+        coefficients: tuple[np.ndarray, np.ndarray] = (
             generate_constraint_coefficient(),
             generate_rhs_coefficient(),
         )
