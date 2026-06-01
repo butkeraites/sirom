@@ -13,10 +13,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install (algorithm + API + dev deps)
+      - name: Install (pinned algorithm + API deps, then the package and test tools)
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[api,dev]"
+          pip install -r requirements-api.txt
+          pip install --no-deps -e .
+          pip install pytest httpx
       - name: Run tests
         run: pytest -q
 

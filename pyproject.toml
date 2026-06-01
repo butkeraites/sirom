@@ -13,6 +13,7 @@ dependencies = [
     "ortools",
     "scikit-learn",
     "scipy",
+    "smt",
 ]
 
 [project.optional-dependencies]
