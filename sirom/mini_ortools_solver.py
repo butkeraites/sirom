@@ -106,15 +106,15 @@ class MiniOrtoolsSolver:
         self.solution = Solution()
         if self.solve_status == self.solver.OPTIMAL:
             self.__retrieve_optimal_solution()
-        self.solution.solve_status = self.solve_status
+        self.solution["solve_status"] = self.solve_status
         if self.print_log:
-            self.solution.log = self.status + self.problem.status
+            self.solution["log"] = self.status + self.problem.status
 
     def __retrieve_optimal_solution(self):
         variables = [x.solution_value() for x in self.variables]
-        coefficient = self.problem.coefficient["constraint"]
-        rhs = self.problem.coefficient["rhs"]
-        objective_coefficient = self.problem.coefficient["objective"]
+        coefficient = self.problem.coefficient.constraint
+        rhs = self.problem.coefficient.rhs
+        objective_coefficient = self.problem.coefficient.objective
         constraints = [
             self.__evaluate_equation(row - float(rhs.iloc[index]), variables)
             for index, row in coefficient.iterrows()

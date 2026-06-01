@@ -78,10 +78,20 @@ class Coefficients:
         """Get scenario constraint matrices."""
         return self._scenarios_constraint
 
+    @scenarios_constraint.setter
+    def scenarios_constraint(self, value: pd.DataFrame) -> None:
+        """Set scenario constraint matrices."""
+        self._scenarios_constraint = value
+
     @property
     def scenarios_rhs(self) -> pd.DataFrame:
         """Get scenario RHS vectors."""
         return self._scenarios_rhs
+
+    @scenarios_rhs.setter
+    def scenarios_rhs(self, value: pd.DataFrame) -> None:
+        """Set scenario RHS vectors."""
+        self._scenarios_rhs = value
     
 
 class ProblemsBucket:
@@ -124,7 +134,13 @@ class ProblemsBucket:
             self.status.append("[ERROR] Coefficient cannot be defined")
             return
         self.coefficient = Coefficients(
-            c_validated, lb_A_validated, ub_A_validated, lb_b_validated, ub_b_validated
+            c_validated,
+            lb_A_validated,
+            ub_A_validated,
+            lb_b_validated,
+            ub_b_validated,
+            scenarios_constraint=pd.DataFrame(),
+            scenarios_rhs=pd.DataFrame(),
         )
 
     def __coefficient_validation(
@@ -404,10 +420,10 @@ class ProblemsBucket:
             leaf = self.cluster_tree.tree_nodes[node]
             data = leaf["data"]
             selected_scenarios = data["points_ids"]
-            self.cluster_tree.tree_nodes[node].problem = solve_optimization_problem(
+            self.cluster_tree.tree_nodes[node]["problem"] = solve_optimization_problem(
                 selected_scenarios
             )
-            self.results.append(self.cluster_tree.tree_nodes[node].problem)
+            self.results.append(self.cluster_tree.tree_nodes[node]["problem"])
 
     def apply_quality_measure(self, number_of_scenarios: int):
         scenarios_constraint, scenarios_rhs = self.__generate_coefficients(
