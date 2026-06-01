@@ -58,6 +58,11 @@
     background:linear-gradient(90deg,var(--teal),#5eead4); transition:.15s; box-shadow:0 8px 24px rgba(45,212,191,.25); }
   button.go:hover{ filter:brightness(1.06); transform:translateY(-1px); }
   button.go:disabled{ opacity:.6; cursor:wait; transform:none; }
+  .sweep{ background:rgba(45,212,191,.12); color:var(--teal); border:1px solid rgba(45,212,191,.4);
+    border-radius:9px; padding:7px 14px; font-family:inherit; font-weight:600; font-size:13px;
+    cursor:pointer; transition:.15s; white-space:nowrap; }
+  .sweep:hover{ background:rgba(45,212,191,.2); }
+  .sweep.playing{ background:var(--teal); color:#04121a; }
   .results { display:flex; flex-direction:column; gap:22px; }
   .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:4px; }
   .stat { background:rgba(255,255,255,.03); border:1px solid var(--card-bd); border-radius:13px; padding:14px 16px; }
@@ -106,8 +111,11 @@
     <!-- Results -->
     <div class="results">
       <div class="card">
-        <h2>Risk vs. probability of hitting your target</h2>
-        <div id="frontier" style="height:380px"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <h2 style="margin:0">Risk vs. probability of hitting your target</h2>
+          <button id="playBtn" class="sweep" style="display:none">▶ Auto-sweep</button>
+        </div>
+        <div id="frontier" style="height:380px;margin-top:14px"></div>
         <div class="hint" id="frontierHint">Press <b>Build portfolios</b>, then click any point on the
           curve to inspect that allocation.</div>
       </div>
@@ -158,6 +166,7 @@ document.getElementById("go").onclick = async ()=>{
   const btn=document.getElementById("go");
   const chosen = ASSETS.filter((_,i)=>ENABLED[i]);
   if(chosen.length<2){ alert("Keep at least two assets enabled."); return; }
+  stopSweep();
   btn.disabled=true; btn.textContent="Sampling futures…";
   try{
     const r = await fetch("/optimize",{method:"POST",headers:{"content-type":"application/json"},
@@ -191,13 +200,37 @@ function renderFrontier(){
     transition:{duration:500, easing:"cubic-in-out"}
   };
   Plotly.react("frontier", [trace], layout, {displayModeBar:false, responsive:true});
-  document.getElementById("frontier").on("plotly_click", e=> select(e.points[0].pointIndex));
+  document.getElementById("frontier").on("plotly_click", e=>{ stopSweep(); select(e.points[0].pointIndex); });
   document.getElementById("frontierHint").innerHTML =
-    `<b>${P.length}</b> Pareto-optimal portfolios. Click a point to see its allocation.`;
+    `<b>${P.length}</b> Pareto-optimal portfolios. Click a point, or use Auto-sweep.`;
+  const playBtn=document.getElementById("playBtn"); playBtn.style.display = P.length>2 ? "" : "none";
   // auto-select a balanced "knee" portfolio (closest to robustness 0.7)
   let knee=0, best=1e9; P.forEach((p,i)=>{const d=Math.abs(p.robustness-0.7); if(d<best){best=d;knee=i;}});
   select(knee);
+  if(P.length>2) startSweep();   // auto-play for hands-free recording
 }
+
+// ---- Auto-play frontier sweep (ping-pong along the curve) ----
+let sweepTimer=null, sweepDir=1;
+function startSweep(){
+  stopSweep();
+  const btn=document.getElementById("playBtn");
+  btn.textContent="⏸ Pause sweep"; btn.classList.add("playing");
+  sweepTimer=setInterval(()=>{
+    const n=DATA.portfolios.length; if(n<2){stopSweep();return;}
+    let next=SEL+sweepDir;
+    if(next>=n){ next=n-2; sweepDir=-1; }
+    else if(next<0){ next=1; sweepDir=1; }
+    select(next);
+  }, 520);
+}
+function stopSweep(){
+  if(sweepTimer){ clearInterval(sweepTimer); sweepTimer=null; }
+  const btn=document.getElementById("playBtn");
+  btn.textContent="▶ Auto-sweep"; btn.classList.remove("playing");
+}
+function toggleSweep(){ sweepTimer ? stopSweep() : startSweep(); }
+document.getElementById("playBtn").onclick = toggleSweep;
 
 function select(i){
   SEL=i; const P=DATA.portfolios[i]; const names=DATA.assets;
