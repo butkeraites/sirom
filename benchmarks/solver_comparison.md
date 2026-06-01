@@ -20,9 +20,8 @@ All three solve the canonical problem to the exact optimum (−34.0).
 | PDLP | 1.927s | 13.706s | 3.6× slower |
 
 GLOP is fastest at both sizes, and its lead **grows** with scale (CLP 1.3×→3.0×,
-PDLP 2.6×→3.6×). PDLP does not close the gap — it is a first-order method built
-for very large sparse LPs; these per-scenario LPs are small and dense, squarely
-in simplex's sweet spot.
+PDLP 2.6×→3.6×). PDLP — a first-order method — does not close the gap (see
+"Does PDLP catch up?" below).
 
 ## Frontier (same objective/feasibility envelope for all three)
 
@@ -38,12 +37,30 @@ in simplex's sweet spot.
   clustering features differ. Same as the slack-fix finding: solver choice
   reshuffles *which* solutions make the frontier, never its reach.
 
+## Does PDLP catch up at large sparse scale? (no)
+
+PDLP is built for large *sparse* LPs, so we timed a single LP built directly in
+OR-Tools (box-bounded variables + sparse coupling rows), isolating `Solve()`:
+
+| LP (box + sparse coupling) | density | GLOP | CLP | PDLP |
+|---|---|---|---|---|
+| 3000 vars × 8000 rows, 6 nnz/row | 0.20% | 0.006s | 0.006s | 0.097s (16×) |
+| 8000 vars × 20000 rows, 8 nnz/row | 0.10% | 0.046s | 0.049s | 1.204s (26×) |
+
+The gap **widens** with size; GLOP/CLP solve an 8000×20000 sparse LP in ~50 ms.
+The reason is **problem hardness, not size or sparsity**: these LPs are
+box-dominated with loose coupling, so the optimum is trivial for simplex (few
+pivots). PDLP pays a fixed first-order iteration cost regardless, so it can't
+win on an *easy* LP however large. PDLP wins only on large **and hard** LPs
+(highly degenerate / tightly-coupled / network-flow), which interval-perturbed
+box-bounded SIROM problems are not.
+
 ## Conclusion
 
 GLOP is the right default: fastest, scales best, vertex-stable with CLP. CLP is
 a safe drop-in for *identical* results at a speed cost. PDLP offers no benefit
-for this problem class (slower and result-shifting); it would only help at a
-scale/sparsity far beyond typical SIROM workloads.
+for this problem class — slower and result-shifting — and does not catch up at
+scale, because SIROM's LPs are easy for simplex regardless of size.
 
 ## Reproduce
 
