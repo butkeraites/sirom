@@ -80,13 +80,25 @@ coefficients (higher = more robust).
 |----------------------|-------------|-------------------------------------------|
 | `SIROM_EXECUTOR`     | `process`   | Job runner: `process`, `thread`, `inline` |
 | `SIROM_WORKERS`      | `min(cpu,4)`| Concurrent solve workers                  |
+| `SIROM_JOB_STORE`    | `memory`    | Job state store: `memory` or `redis`      |
+| `SIROM_REDIS_URL`    | `redis://localhost:6379/0` | Redis URL (when store is `redis`) |
+| `SIROM_JOB_TTL`      | `86400`     | Seconds a finished job is kept (redis)    |
 | `SIROM_MAX_SCENARIOS`| `2000`      | Per-request scenario cap                  |
 | `SIROM_MAX_VARS`     | `200`       | Variable-count cap                        |
 | `SIROM_MAX_CONSTRAINTS` | `500`    | Constraint-count cap                      |
 
-> The job store is in-memory, so run a **single** uvicorn worker (the process
-> pool still parallelizes solves). A shared store (e.g. Redis) is the path to
-> horizontal scaling; see `sirom/api/jobs.py`.
+### Scaling out
+
+With the default **`memory`** store, job state is process-local — run a
+**single** uvicorn worker (the process pool still parallelizes solves).
+
+Set **`SIROM_JOB_STORE=redis`** to share job state across workers and survive
+restarts, so you can run multiple uvicorn workers (or replicas) behind a load
+balancer — a poll that lands on any worker sees the result. `docker compose up`
+is wired this way (a `redis` service + 2 workers). Execution still happens on
+the worker that received the request; Redis provides shared *state*, not a
+distributed task queue (a crashed worker won't hand its in-flight job to
+another). See `sirom/api/jobs.py`.
 
 ## Develop
 
