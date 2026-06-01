@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SIROM · Robust Portfolio Optimization</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0:#0a0e1a; --bg1:#0f1830; --card:rgba(255,255,255,.045); --card-bd:rgba(255,255,255,.09);
+    --txt:#e8eef9; --muted:#93a4bd; --teal:#2dd4bf; --amber:#f59e0b; --blue:#60a5fa; --violet:#a78bfa;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; font-family:Inter,system-ui,sans-serif; color:var(--txt);
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(45,212,191,.10), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(96,165,250,.12), transparent 55%),
+      linear-gradient(160deg, var(--bg0), var(--bg1));
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1180px; margin:0 auto; padding:36px 24px 56px; }
+  header { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+  .logo { font-weight:800; font-size:30px; letter-spacing:-.5px;
+    background:linear-gradient(90deg,var(--teal),var(--blue)); -webkit-background-clip:text;
+    background-clip:text; color:transparent; }
+  .logo span { color:var(--muted); -webkit-text-fill-color:var(--muted); font-weight:600; }
+  .tagline { color:var(--muted); font-size:15px; }
+  h1 { font-size:23px; font-weight:700; margin:18px 0 4px; letter-spacing:-.3px; }
+  .sub { color:var(--muted); font-size:14px; margin-bottom:26px; max-width:680px; line-height:1.5; }
+  .grid { display:grid; grid-template-columns:340px 1fr; gap:22px; align-items:start; }
+  @media (max-width:880px){ .grid{ grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--card-bd); border-radius:18px; padding:22px;
+    backdrop-filter:blur(8px); box-shadow:0 12px 40px rgba(0,0,0,.35);
+    animation:rise .5s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes rise { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);
+    margin:0 0 16px; font-weight:600; }
+  .label { display:flex; justify-content:space-between; font-size:14px; margin:18px 0 8px; }
+  .label b { color:var(--teal); font-variant-numeric:tabular-nums; font-size:15px; }
+  input[type=range]{ -webkit-appearance:none; width:100%; height:6px; border-radius:6px;
+    background:linear-gradient(90deg,var(--blue),var(--teal)); outline:none; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:20px; height:20px;
+    border-radius:50%; background:#fff; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.4); border:3px solid var(--teal); }
+  .assets { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  .asset { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:11px;
+    border:1px solid var(--card-bd); cursor:pointer; transition:.15s; user-select:none; }
+  .asset:hover{ border-color:rgba(255,255,255,.22); }
+  .asset.off{ opacity:.4; }
+  .asset .dot{ width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
+  .asset .nm{ font-size:13.5px; font-weight:600; flex:1; }
+  .asset .meta{ font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; text-align:right; }
+  button.go { margin-top:22px; width:100%; padding:14px; border:0; border-radius:12px; cursor:pointer;
+    font-family:inherit; font-weight:700; font-size:15px; color:#04121a;
+    background:linear-gradient(90deg,var(--teal),#5eead4); transition:.15s; box-shadow:0 8px 24px rgba(45,212,191,.25); }
+  button.go:hover{ filter:brightness(1.06); transform:translateY(-1px); }
+  button.go:disabled{ opacity:.6; cursor:wait; transform:none; }
+  .sweep{ background:rgba(45,212,191,.12); color:var(--teal); border:1px solid rgba(45,212,191,.4);
+    border-radius:9px; padding:7px 14px; font-family:inherit; font-weight:600; font-size:13px;
+    cursor:pointer; transition:.15s; white-space:nowrap; }
+  .sweep:hover{ background:rgba(45,212,191,.2); }
+  .sweep.playing{ background:var(--teal); color:#04121a; }
+  .results { display:flex; flex-direction:column; gap:22px; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:4px; }
+  .stat { background:rgba(255,255,255,.03); border:1px solid var(--card-bd); border-radius:13px; padding:14px 16px; }
+  .stat .k{ font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+  .stat .v{ font-size:26px; font-weight:800; margin-top:4px; font-variant-numeric:tabular-nums; letter-spacing:-.5px; }
+  .v.ret{ color:var(--blue);} .v.risk{ color:var(--amber);} .v.rob{ color:var(--teal); }
+  .alloc { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:center; }
+  @media (max-width:560px){ .alloc{ grid-template-columns:1fr; } .stats{ grid-template-columns:1fr; } }
+  .hint{ color:var(--muted); font-size:12.5px; margin-top:10px; }
+  .empty{ color:var(--muted); text-align:center; padding:60px 20px; font-size:14px; }
+  .footer{ color:var(--muted); font-size:12.5px; margin-top:30px; text-align:center; }
+  .footer a{ color:var(--teal); text-decoration:none; }
+  .badge{ display:inline-block; font-size:11px; color:var(--teal); border:1px solid rgba(45,212,191,.4);
+    border-radius:999px; padding:2px 10px; vertical-align:middle; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">SIROM<span> / portfolio</span></div>
+    <span class="badge">robust optimization</span>
+  </header>
+  <h1>Build a portfolio that survives an uncertain future.</h1>
+  <p class="sub">Asset returns aren't fixed — they live in a range. SIROM samples thousands of
+    possible futures, finds the lowest-risk allocation in each, and shows you the
+    trade-off: <b style="color:var(--amber)">how much risk</b> buys
+    <b style="color:var(--teal)">how much certainty</b> of hitting your target return.</p>
+
+  <div class="grid">
+    <!-- Controls -->
+    <div class="card">
+      <h2>Your goal</h2>
+      <div class="label">Target annual return <b id="tgtVal">10.0%</b></div>
+      <input id="tgt" type="range" min="4" max="16" step="0.5" value="10" />
+      <div class="label">Uncertain futures sampled <b id="scnVal">120</b></div>
+      <input id="scn" type="range" min="40" max="300" step="20" value="120" />
+
+      <h2 style="margin-top:24px">Assets <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap to toggle)</span></h2>
+      <div class="assets" id="assets"></div>
+
+      <button class="go" id="go">Build portfolios →</button>
+      <div class="hint">Each future draws every asset's return from its range; SIROM clusters the
+        resulting optimal portfolios into a Pareto frontier.</div>
+    </div>
+
+    <!-- Results -->
+    <div class="results">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <h2 style="margin:0">Risk vs. probability of hitting your target</h2>
+          <button id="playBtn" class="sweep" style="display:none">▶ Auto-sweep</button>
+        </div>
+        <div id="frontier" style="height:380px;margin-top:14px"></div>
+        <div class="hint" id="frontierHint">Press <b>Build portfolios</b>, then click any point on the
+          curve to inspect that allocation.</div>
+      </div>
+      <div class="card">
+        <h2>Selected portfolio</h2>
+        <div class="stats">
+          <div class="stat"><div class="k">Expected return</div><div class="v ret" id="sRet">—</div></div>
+          <div class="stat"><div class="k">Risk</div><div class="v risk" id="sRisk">—</div></div>
+          <div class="stat"><div class="k">Hits target</div><div class="v rob" id="sRob">—</div></div>
+        </div>
+        <div class="alloc">
+          <div id="donut" style="height:260px"></div>
+          <div id="legend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Powered by <a href="https://github.com/butkeraites/sirom">SIROM</a> ·
+    Simulation-based Robust Optimization Method</div>
+</div>
+
+<script>
+const PALETTE = ["#2dd4bf","#60a5fa","#a78bfa","#f59e0b","#f472b6","#34d399","#fbbf24","#38bdf8"];
+const CASH = "#64748b";
+const fmtPct = v => (v*100).toFixed(1) + "%";
+let ASSETS = [], ENABLED = [], DATA = null, SEL = -1;
+
+async function loadAssets(){
+  const r = await fetch("/assets"); const j = await r.json();
+  ASSETS = j.assets; ENABLED = ASSETS.map(()=>true);
+  const box = document.getElementById("assets"); box.innerHTML = "";
+  ASSETS.forEach((a,i)=>{
+    const el = document.createElement("div"); el.className = "asset"; el.dataset.i = i;
+    el.innerHTML = `<span class="dot" style="background:${PALETTE[i%PALETTE.length]}"></span>
+      <span class="nm">${a.name}</span>
+      <span class="meta">${fmtPct(a.return_low)}–${fmtPct(a.return_high)}<br>risk ${a.risk.toFixed(2)}</span>`;
+    el.onclick = ()=>{ ENABLED[i]=!ENABLED[i]; el.classList.toggle("off",!ENABLED[i]); };
+    box.appendChild(el);
+  });
+}
+
+const tgt=document.getElementById("tgt"), scn=document.getElementById("scn");
+tgt.oninput=()=>document.getElementById("tgtVal").textContent=parseFloat(tgt.value).toFixed(1)+"%";
+scn.oninput=()=>document.getElementById("scnVal").textContent=scn.value;
+
+document.getElementById("go").onclick = async ()=>{
+  const btn=document.getElementById("go");
+  const chosen = ASSETS.filter((_,i)=>ENABLED[i]);
+  if(chosen.length<2){ alert("Keep at least two assets enabled."); return; }
+  stopSweep();
+  btn.disabled=true; btn.textContent="Sampling futures…";
+  try{
+    const r = await fetch("/optimize",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({ target_return: parseFloat(tgt.value)/100,
+        number_of_scenarios: parseInt(scn.value), assets: chosen })});
+    DATA = await r.json();
+    renderFrontier();
+  }catch(e){ alert("Optimization failed: "+e); }
+  finally{ btn.disabled=false; btn.textContent="Build portfolios →"; }
+};
+
+function renderFrontier(){
+  const P = DATA.portfolios;
+  if(!P.length){ document.getElementById("frontierHint").textContent =
+    "No portfolios met that target across the sampled futures — try a lower target."; return; }
+  const x = P.map(p=>p.robustness*100), y = P.map(p=>p.risk*100), ret = P.map(p=>p.expected_return*100);
+  const trace = {
+    x, y, mode:"lines+markers", type:"scatter",
+    line:{color:"rgba(148,164,189,.45)", width:2, shape:"spline"},
+    marker:{ size:11, color:ret, colorscale:[[0,"#60a5fa"],[1,"#2dd4bf"]],
+      line:{color:"#0a0e1a", width:1.5},
+      colorbar:{title:{text:"exp. return %",font:{color:"#93a4bd",size:11}}, tickfont:{color:"#93a4bd"},
+        outlinewidth:0, thickness:10, len:.7} },
+    hovertemplate:"hits target %{x:.0f}%<br>risk %{y:.1f}<br>return %{marker.color:.1f}%<extra></extra>"
+  };
+  // spotlight overlay tracking the selected point: a soft glow + a bright dot
+  const halo = { x:[], y:[], mode:"markers", type:"scatter", hoverinfo:"skip",
+    showlegend:false, marker:{ size:38, color:"rgba(245,158,11,.22)", line:{width:0} } };
+  const dot = { x:[], y:[], mode:"markers", type:"scatter", hoverinfo:"skip",
+    showlegend:false, marker:{ size:18, color:"#f59e0b", line:{color:"#fff", width:2.5} } };
+  const layout = {
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    margin:{l:54,r:10,t:10,b:46}, font:{color:"#93a4bd", family:"Inter"},
+    xaxis:{title:"probability of hitting target  (%)", gridcolor:"rgba(255,255,255,.06)", zeroline:false},
+    yaxis:{title:"portfolio risk", gridcolor:"rgba(255,255,255,.06)", zeroline:false},
+    transition:{duration:500, easing:"cubic-in-out"}
+  };
+  Plotly.react("frontier", [trace, halo, dot], layout, {displayModeBar:false, responsive:true});
+  document.getElementById("frontier").on("plotly_click", e=>{
+    const pt=e.points[0]; if(pt.curveNumber!==0) return;   // ignore clicks on the overlay
+    stopSweep(); select(pt.pointIndex);
+  });
+  document.getElementById("frontierHint").innerHTML =
+    `<b>${P.length}</b> Pareto-optimal portfolios. Click a point, or use Auto-sweep.`;
+  const playBtn=document.getElementById("playBtn"); playBtn.style.display = P.length>2 ? "" : "none";
+  // auto-select a balanced "knee" portfolio (closest to robustness 0.7)
+  let knee=0, best=1e9; P.forEach((p,i)=>{const d=Math.abs(p.robustness-0.7); if(d<best){best=d;knee=i;}});
+  select(knee);
+  if(P.length>2) startSweep();   // auto-play for hands-free recording
+}
+
+// ---- Auto-play frontier sweep (ping-pong along the curve) ----
+let sweepTimer=null, sweepDir=1;
+function startSweep(){
+  stopSweep();
+  const btn=document.getElementById("playBtn");
+  btn.textContent="⏸ Pause sweep"; btn.classList.add("playing");
+  sweepTimer=setInterval(()=>{
+    const n=DATA.portfolios.length; if(n<2){stopSweep();return;}
+    let next=SEL+sweepDir;
+    if(next>=n){ next=n-2; sweepDir=-1; }
+    else if(next<0){ next=1; sweepDir=1; }
+    select(next);
+  }, 900);
+}
+function stopSweep(){
+  if(sweepTimer){ clearInterval(sweepTimer); sweepTimer=null; }
+  const btn=document.getElementById("playBtn");
+  btn.textContent="▶ Auto-sweep"; btn.classList.remove("playing");
+}
+function toggleSweep(){ sweepTimer ? stopSweep() : startSweep(); }
+document.getElementById("playBtn").onclick = toggleSweep;
+
+function select(i){
+  SEL=i; const P=DATA.portfolios[i]; const names=DATA.assets;
+  document.getElementById("sRet").textContent=fmtPct(P.expected_return);
+  document.getElementById("sRisk").textContent=P.risk.toFixed(2);
+  document.getElementById("sRob").textContent=Math.round(P.robustness*100)+"%";
+
+  const labels=[], values=[], colors=[];
+  P.weights.forEach((w,k)=>{ if(w>0.005){ labels.push(names[k]); values.push(w*100); colors.push(PALETTE[k%PALETTE.length]); }});
+  if(P.cash>0.005){ labels.push("Cash"); values.push(P.cash*100); colors.push(CASH); }
+  Plotly.react("donut", [{
+    labels, values, type:"pie", hole:.62, sort:false, direction:"clockwise",
+    marker:{colors, line:{color:"#0a0e1a", width:2}},
+    textinfo:"label", textposition:"outside",
+    textfont:{color:"#e8eef9", size:12, family:"Inter"},
+    hovertemplate:"%{label}<br>%{value:.0f}%<extra></extra>"
+  }],{
+    paper_bgcolor:"rgba(0,0,0,0)", margin:{l:10,r:10,t:14,b:14}, showlegend:false,
+    annotations:[{text:fmtPct(P.expected_return)+"<br><span style='font-size:11px;color:#93a4bd'>return</span>",
+      showarrow:false, font:{color:"#e8eef9", size:18, family:"Inter"}}]
+  },{displayModeBar:false, responsive:true});
+
+  // move the amber spotlight (halo = trace 1, dot = trace 2) to this point
+  const xv=P.robustness*100, yv=P.risk*100;
+  Plotly.restyle("frontier", {x:[[xv],[xv]], y:[[yv],[yv]]}, [1,2]);
+
+  const leg=document.getElementById("legend");
+  leg.innerHTML = labels.map((l,k)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin:5px 0">
+     <span style="width:11px;height:11px;border-radius:3px;background:${colors[k]}"></span>
+     <span style="flex:1">${l}</span><b style="font-variant-numeric:tabular-nums">${values[k].toFixed(0)}%</b></div>`).join("");
+}
+
+loadAssets();
+</script>
+</body>
+</html>
