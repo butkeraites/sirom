@@ -1,6 +1,26 @@
 # SIROM HTTP API image.
-# Single stage: every dependency ships a prebuilt manylinux wheel, so there is
-# no build toolchain to discard and multi-stage would save little.
+#
+# Multi-stage: most dependencies ship prebuilt manylinux wheels, but `smt` has
+# no wheel for some platforms (e.g. linux/arm64) and compiles a C++ extension
+# from source. The builder stage carries the toolchain and produces wheels for
+# everything; the runtime stage installs those wheels into a clean slim image
+# with no compiler, keeping it small and portable across architectures.
+
+FROM python:3.11-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt requirements-api.txt ./
+# Build/collect wheels for every dependency (compiles smt here).
+RUN pip wheel --wheel-dir /wheels -r requirements-api.txt
+
+
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -9,9 +29,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install dependencies first so this layer caches across code changes.
+# Install dependencies from the prebuilt wheels (no toolchain, no network).
+COPY --from=builder /wheels /wheels
 COPY requirements.txt requirements-api.txt ./
-RUN pip install -r requirements-api.txt
+RUN pip install --no-index --find-links=/wheels -r requirements-api.txt \
+    && rm -rf /wheels
 
 # Install the package itself (deps already satisfied above).
 COPY pyproject.toml README.md ./
