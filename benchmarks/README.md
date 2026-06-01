@@ -13,6 +13,30 @@ Columns are seconds for each phase: `generate` (scenario coefficients, in
 `__init__`), `solve` (N scenario LPs), `cluster` (KMeans tree), `tree`
 (per-node re-solve), `quality` (feasibility scoring over M scenarios), `total`.
 
+## Frontier diff (`frontier_diff.py`)
+
+Compare the Pareto frontier (objective vs feasibility) across code versions or
+configurations. Because the algorithm samples scenarios randomly, this tool
+fixes the scenarios once and replays them, so any frontier difference is
+attributable to the change alone — not sampling noise.
+
+```bash
+# capture a fixed problem + scenarios once
+python benchmarks/frontier_diff.py prep --dir /tmp/fd
+
+# run on the current code, then on another commit/config
+python benchmarks/frontier_diff.py run --dir /tmp/fd --out /tmp/fd/after.json
+git checkout <other-commit>
+python benchmarks/frontier_diff.py run --dir /tmp/fd --out /tmp/fd/before.json
+git checkout -
+
+# compare
+python benchmarks/frontier_diff.py diff /tmp/fd/before.json /tmp/fd/after.json
+```
+
+`prep` accepts `--vars/--con/--scenarios/--quality/--seed`. Used to confirm the
+constraint-slack fix shifted only a few frontier points.
+
 ## Baseline (SCIP, serial, pandas) — pre-optimization
 
 Apple Silicon, `main` @ PR #5. Reference point for the optimization phases.
