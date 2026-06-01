@@ -8,50 +8,32 @@ note records how much, measured with `frontier_diff.py` (same problem and
 
 ## Results
 
-Small instance (6 vars × 15 constraints, N=120): **35 / 42 points identical**,
-same objective and feasibility ranges.
+Aggregated over seeds (`|ΔObj|` = shift in best objective achievable at a fixed
+feasibility level; objective magnitudes are ~13 at 20×50 and ~32 at 50×150):
 
-Larger instance (20 vars × 50 constraints, N=300), across 5 seeds:
-
-| seed | #before | #after | shared | obj range match | feas range match |
-|---|---|---|---|---|---|
-| 1 | 21 | 19 | 7 | yes | yes |
-| 2 | 26 | 26 | 13 | yes | yes |
-| 3 | 13 | 14 | 4 | yes | yes |
-| 4 | 26 | 27 | 12 | yes | yes |
-| 5 | 18 | 20 | 6 | yes | yes |
-
-Mean Jaccard overlap ≈ **0.24**. Best objective achievable at a given
-feasibility level differed by only small, mixed-sign amounts (typically within
-~±0.04 of an objective of magnitude 12–14; one outlier ~0.22 at seed 1).
-
-XL instance (50 vars × 150 constraints, N=400): **2 of ~15 points identical**
-(Jaccard ≈ 0.07), ranges still identical, trade-off deltas < 0.4% of an
-objective of magnitude ~32.
-
-### Overlap shrinks with problem size
-
-| instance | variables | frontier overlap (Jaccard) |
-|---|---|---|
-| 6 × 15 | 6 | ~0.83 |
-| 20 × 50 | 20 | ~0.24 |
-| 50 × 150 | 50 | ~0.07 |
-
-Monotonic: more variables ⇒ larger `sum(x)` ⇒ bigger `b·(sum(x) − 1)` error ⇒
-the cluster trees, and thus the frontier's specific points, diverge more.
+| instance | seeds | Jaccard overlap (mean [min–max]) | avg #before → #after | range match (obj, feas) | mean \|ΔObj\| | max \|ΔObj\| |
+|---|---|---|---|---|---|---|
+| 6 × 15 (N=120) | 1 | ~0.83 | 42 → 42 | yes | — | — |
+| 20 × 50 (N=300) | 5 | **0.24** [0.17–0.33] | 20.8 → 21.2 | 5/5, 5/5 | 0.041 | 0.224 |
+| 50 × 150 (N=400) | 5 | **0.09** [0.07–0.14] | 14.4 → 15.0 | 5/5, 5/5 | 0.086 | 0.402 |
 
 ## Conclusion
 
-- **Structural change is large and grows with problem size** — frontier-point
-  overlap falls from ~83% (6 vars) to ~24% (20 vars) to ~7% (50 vars). The
-  error term `b·(sum(x) − 1)` scales with `sum(x)`, so more variables ⇒ more
-  divergence. Consistent across all 5 seeds at 20×50.
-- **The decision-relevant envelope is stable** — objective and feasibility
-  ranges matched exactly on every seed, and neither formula systematically
-  dominates the cost-vs-robustness trade-off.
+- **Structural change is large, scales with problem size, and is seed-robust.**
+  Frontier-point overlap collapses ~0.83 → 0.24 → 0.09 from 6 to 20 to 50
+  variables, with narrow per-instance bands (0.17–0.33, 0.07–0.14 over 5 seeds).
+  The error term `b·(sum(x) − 1)` grows with `sum(x)`, so more variables ⇒ more
+  cluster-tree divergence ⇒ fewer shared frontier points.
+- **The envelope is invariant** — objective and feasibility ranges matched
+  exactly on *every* seed at *every* size (10/10 at both multi-seed instances).
+- **The trade-off is stable on average; worst-case local shifts grow slowly.**
+  Mean `|ΔObj|` stays small (0.041 → 0.086), but the per-instance max grows
+  (0.224 → 0.402, ~1.3% of the objective at 50×150) and is mixed-sign — neither
+  formula systematically dominates.
 
-So the fix is correct and matters for reproducing *specific* solution sets
-(especially at scale), but pre-fix frontiers were not qualitatively misleading.
+So the fix is correct and matters increasingly for reproducing *specific*
+solution sets as problems scale, but pre-fix frontiers were not qualitatively
+misleading — the achievable cost-vs-robustness frontier is essentially the same.
 
 ## Reproduce
 
