@@ -21,12 +21,14 @@ api = [
     "fastapi==0.136.3",
     "uvicorn[standard]==0.48.0",
     "pydantic==2.13.4",
+    "redis==8.0.0",
 ]
 dev = [
     "pytest",
     "mypy",
     "black",
     "httpx",
+    "fakeredis",
 ]
 
 [tool.setuptools.packages.find]
