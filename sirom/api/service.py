@@ -16,6 +16,7 @@ import time
 from typing import Any, Dict, List, Tuple
 
 from sirom.batch_solver import ProblemsBucket
+from sirom.mini_ortools_solver import solver_available
 
 from .errors import SolveError, friendly_messages, has_errors
 from .schemas import (
@@ -75,6 +76,16 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
 
     try:
         with contextlib.redirect_stdout(log_buffer):
+            if opts.solver is not None and not solver_available(opts.solver):
+                raise SolveError(
+                    [
+                        f"Solver '{opts.solver}' is not available in this "
+                        "OR-Tools build. Open-source backends (GLOP, CLP, PDLP, "
+                        "SCIP, CBC) ship by default; commercial solvers (GUROBI, "
+                        "CPLEX, XPRESS) require an OR-Tools build linked against "
+                        "them and a valid license."
+                    ]
+                )
             bucket = ProblemsBucket(
                 request.objective,
                 request.lb_A,
@@ -84,6 +95,7 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
                 number_of_scenarios=opts.number_of_scenarios,
                 number_of_clusters=opts.clusters,
                 integer_variables=request.integer_variables,
+                solver_selection=opts.solver,
             )
             if has_errors(bucket.status):
                 raise SolveError(friendly_messages(bucket.status))

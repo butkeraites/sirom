@@ -62,6 +62,23 @@ a safe drop-in for *identical* results at a speed cost. PDLP offers no benefit
 for this problem class — slower and result-shifting — and does not catch up at
 scale, because SIROM's LPs are easy for simplex regardless of size.
 
+## Commercial solvers
+
+SIROM passes the solver name straight to OR-Tools' `CreateSolver`, so **any
+backend OR-Tools is built with works** — including the commercial **GUROBI**,
+**CPLEX**, and **XPRESS** — given a build linked against them and a valid
+license. No SIROM code changes are needed:
+
+- **Library:** `ProblemsBucket(..., solver_selection="GUROBI")`.
+- **HTTP API:** `{"options": {"solver": "GUROBI"}}` on `POST /solve`.
+
+Auto-selection (GLOP for LP, SCIP for MILP) applies when no solver is given.
+A requested solver that isn't in the current build fails fast with a clear
+message rather than a crash. Commercial solvers are not included in the default
+OR-Tools wheel; they can pay off on large *hard* MILPs (the integer side), where
+their branch-and-cut is far stronger than the open-source SCIP/CBC — though for
+SIROM's continuous LP path GLOP is already optimal (above).
+
 ## Reproduce
 
 `ProblemsBucket` takes an explicit `solver_selection` that overrides the

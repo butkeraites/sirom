@@ -66,6 +66,14 @@ class SolveOptions(BaseModel):
         description="Branching factor of the internal clustering heuristic "
         "(advanced; the published default is 3).",
     )
+    solver: Optional[str] = Field(
+        default=None,
+        description="Override the solver backend. Default (null) auto-selects "
+        "GLOP for LPs and SCIP for problems with integer variables. "
+        "Open-source options: GLOP, CLP, PDLP (LP); SCIP, CBC (MILP). "
+        "Commercial solvers GUROBI, CPLEX, XPRESS are also supported when the "
+        "OR-Tools build is linked against them and a license is available.",
+    )
     include_log: bool = Field(
         default=False,
         description="If true, the run's internal timing log is returned with "
