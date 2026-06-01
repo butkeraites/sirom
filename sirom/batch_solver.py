@@ -1,7 +1,6 @@
 from numbers import Number
 from typing import TypedDict
 
-from numpy.core.fromnumeric import mean
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans  # type: ignore
@@ -465,6 +464,15 @@ class ProblemsBucket:
             number_of_scenarios
         )
         print("[{}] Quality measure application started".format(date.today()))
+        # Stack the scenarios once: constraint tensor (M, n_con, n_var) and RHS
+        # matrix (M, n_con). Scoring each candidate is then a single batched
+        # matrix-vector product instead of a Python loop over scenarios.
+        constraint_tensor = np.array(
+            [np.asarray(scenario, dtype=float) for scenario in scenarios_constraint]
+        )
+        rhs_matrix = np.array(
+            [np.asarray(rhs, dtype=float).reshape(-1) for rhs in scenarios_rhs]
+        )
         for result in self.results:
             tic = time.time()
             if result.get("solve_status") != 0 or "variable" not in result:
@@ -473,25 +481,15 @@ class ProblemsBucket:
                 # of crashing the whole run.
                 result["feasibility_probability"] = 0.0
                 continue
-            result_feasibility = []
-            for scenario in range(len(scenarios_constraint)):
-                constraints_evaluation = (
-                    pd.DataFrame(
-                        np.dot(
-                            scenarios_constraint[scenario], np.array(result["variable"])
-                        )
-                    )
-                    - scenarios_rhs[scenario]
-                )
-                if constraints_evaluation.max().item() > 0:
-                    result_feasibility.append(0)
-                else:
-                    result_feasibility.append(1)
-            mean_result_feasibility = mean(result_feasibility)
+            variable = np.asarray(result["variable"], dtype=float)
+            # Per scenario, the constraint set is violated iff the max of
+            # (A @ x - b) is strictly positive (matches the original > 0 test).
+            max_violation = (constraint_tensor @ variable - rhs_matrix).max(axis=1)
+            mean_result_feasibility = float(np.mean(max_violation <= 0.0))
             toc = time.time()
             print(
                 "[{}] Quality measurement evaluated: {} - Elapsed time: {}".format(
                     date.today(), mean_result_feasibility, toc - tic
                 )
             )
-            result["feasibility_probability"] = float(mean_result_feasibility)
+            result["feasibility_probability"] = mean_result_feasibility

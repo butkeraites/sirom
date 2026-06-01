@@ -130,6 +130,21 @@ def test_batch_solver_custom_number_of_clusters_is_stored():
     assert opt_problem_batch.number_of_clusters == 5
 
 
+def test_batch_solver_quality_measure_feasibility_extremes():
+    # x=0 satisfies every constraint (A*0 = 0 <= b) for all scenarios -> 1.0;
+    # a huge x violates the upper-bound rows for all scenarios -> 0.0.
+    opt_problem_batch = ProblemsBucket(
+        c_value, lb_A_value, ub_A_value, lb_b_value, ub_b_value, number_of_scenarios
+    )
+    opt_problem_batch.results = [
+        {"solve_status": 0, "variable": [0.0, 0.0]},
+        {"solve_status": 0, "variable": [1000.0, 1000.0]},
+    ]
+    opt_problem_batch.apply_quality_measure(number_of_scenarios=10)
+    assert opt_problem_batch.results[0]["feasibility_probability"] == 1.0
+    assert opt_problem_batch.results[1]["feasibility_probability"] == 0.0
+
+
 def test_batch_solver_quality_measure_skips_non_optimal():
     # A non-optimal result (no "variable" key) must not crash the quality
     # measure; it should be scored as never feasible instead.
