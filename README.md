@@ -214,6 +214,9 @@ python -m sirom.main                  # run the algorithm end-to-end (no server)
 python benchmarks/bench_pipeline.py   # per-phase performance benchmark
 ```
 
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+conventions, and the PR workflow.
+
 ## Citation
 
 If you use SIROM in academic work, please cite:
