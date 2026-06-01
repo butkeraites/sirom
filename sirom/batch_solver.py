@@ -5,8 +5,11 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans  # type: ignore
 from smt.sampling_methods import LHS  # type: ignore
+from threadpoolctl import threadpool_limits  # type: ignore
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
+import os
 import time
 
 from .cluster_tree import ClusterTree, Leaf, RootData
@@ -108,6 +111,7 @@ class ProblemsBucket:
         number_of_clusters: int = 3,
         integer_variables: "list[int] | None" = None,
         solver_selection: "str | None" = None,
+        n_jobs: int = 1,
     ):
         self.status: list[str] = []
         self.results: list[Solution] = []
@@ -117,6 +121,10 @@ class ProblemsBucket:
         # override; by default the solver is auto-selected per problem.
         self.integer_variables: list[int] = list(integer_variables or [])
         self.solver_selection: "str | None" = solver_selection
+        # Threads for the (independent) scenario solves. Default 1 = serial, so
+        # the API's process pool owns parallelism; standalone callers can raise
+        # it (e.g. n_jobs=-1 for all cores).
+        self.n_jobs: int = n_jobs
         c_validated = self.__coefficient_validation(c_value, "objective")
         lb_A_validated = self.__coefficient_validation(lb_A_value, "lb_constraint")
         ub_A_validated = self.__coefficient_validation(ub_A_value, "ub_constraint")
@@ -274,23 +282,36 @@ class ProblemsBucket:
     def solve(self):
         c_value = np.array(self.coefficient.objective)
         print("[{}] Solve process started".format(date.today()))
-        for scenario in range(self.number_of_scenarios):
-            tic = time.time()
+
+        def solve_scenario(scenario: int) -> Solution:
             A_value = np.matrix(self.coefficient.scenarios_constraint[scenario])
             b_value = np.array(self.coefficient.scenarios_rhs[scenario])
             optimization_problem = OptimizationProblem(
                 c_value, A_value, b_value, integer_variables=self.integer_variables
             )
-            mini_ortool = MiniOrtoolsSolver(
+            return MiniOrtoolsSolver(
                 optimization_problem, self.solver_selection
-            )
-            toc = time.time()
-            print(
-                "[{}] Scenario {} | Duration: {}".format(
-                    date.today(), scenario, toc - tic
-                )
-            )
-            self.results.append(mini_ortool.solution)
+            ).solution
+
+        scenarios = range(self.number_of_scenarios)
+        workers = self.__resolve_workers(self.number_of_scenarios)
+        if workers == 1:
+            solutions = [solve_scenario(scenario) for scenario in scenarios]
+        else:
+            # Scenario solves are independent; OR-Tools releases the GIL during
+            # Solve(). Pin BLAS to 1 thread so per-thread numpy work doesn't
+            # oversubscribe cores. executor.map keeps results in scenario order.
+            with threadpool_limits(limits=1):
+                with ThreadPoolExecutor(max_workers=workers) as executor:
+                    solutions = list(executor.map(solve_scenario, scenarios))
+        self.results.extend(solutions)
+
+    def __resolve_workers(self, n_tasks: int) -> int:
+        if self.n_jobs in (None, 0, 1):
+            return 1
+        if self.n_jobs < 0:
+            return max(1, min(n_tasks, os.cpu_count() or 1))
+        return max(1, min(self.n_jobs, n_tasks))
 
     def cluster_and_selection(self):
         def calculate_wcss(points_coordinates) -> float:

@@ -9,13 +9,19 @@ def test_optimization():
     ub_b_value = [3, 2, 3, 0, 0]
 
     opt_problem_batch = ProblemsBucket(
-        c_value, lb_A_value, ub_A_value, lb_b_value, ub_b_value, number_of_scenarios=100
+        c_value,
+        lb_A_value,
+        ub_A_value,
+        lb_b_value,
+        ub_b_value,
+        number_of_scenarios=100,
+        n_jobs=-1,  # standalone run: use all cores for the scenario solves
     )
     opt_problem_batch.solve()
     opt_problem_batch.cluster_and_selection()
     opt_problem_batch.solve_cluster_tree()
     opt_problem_batch.apply_quality_measure(number_of_scenarios=100)
-    # TODO: IMPROVE EFFICIENCY, AND CREATE PARETO FRONTIER, EXPORT  CSV
+    # TODO: EXPORT CSV (the Pareto frontier is built by the HTTP API layer)
 
 
 test_optimization()
