@@ -140,11 +140,10 @@ class MiniOrtoolsSolver:
         objective_coefficient = np.asarray(
             self.problem.coefficient.objective, dtype=float
         ).reshape(-1)
-        # NOTE: this preserves the original (peculiar) per-constraint value,
-        # A_i . x - b_i * sum(x), used as a clustering feature downstream --
-        # not the plain slack A_i . x - b_i. Kept identical so this refactor
-        # doesn't change results.
-        constraints = (constraint_matrix @ x - rhs * x.sum()).tolist()
+        # Per-constraint slack g_i(x) = A_i . x - b_i (the constraint function
+        # from the problem form A x - b <= 0). Used as a clustering feature
+        # downstream. (Previously this erroneously computed A_i . x - b_i*sum(x).)
+        constraints = (constraint_matrix @ x - rhs).tolist()
         objective_value = float(objective_coefficient @ x)
         self.solution["variable"] = variables
         self.solution["constraint"] = constraints

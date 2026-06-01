@@ -59,6 +59,15 @@ def test_mini_ortools_solver_solution_solve_status():
     assert mini_ortool.solution["solve_status"] == 0
 
 
+def test_solution_constraint_is_the_slack():
+    # At the optimum x ~ [6, 4], the per-constraint slack A_i.x - b_i is
+    # [0, -14, 0, -6, -4] for this problem.
+    mini_ortool = MiniOrtoolsSolver(optimization_problem)
+    assert mini_ortool.solution["constraint"] == pytest.approx(
+        [0.0, -14.0, 0.0, -6.0, -4.0], abs=1e-6
+    )
+
+
 def test_solve_emits_no_future_warning():
     import warnings
 
