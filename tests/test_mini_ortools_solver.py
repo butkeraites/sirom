@@ -59,6 +59,16 @@ def test_mini_ortools_solver_solution_solve_status():
     assert mini_ortool.solution["solve_status"] == 0
 
 
+def test_solve_emits_no_future_warning():
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        mini_ortool = MiniOrtoolsSolver(optimization_problem)
+        assert mini_ortool.solution["solve_status"] == 0
+        assert mini_ortool.solution["objective_value"] == pytest.approx(-34.0)
+
+
 def test_select_solver_glop_for_continuous():
     assert select_solver(optimization_problem) == "GLOP"
 
