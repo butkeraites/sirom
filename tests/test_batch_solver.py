@@ -98,9 +98,9 @@ def test_batch_solver_scenarios_size():
         c_value, lb_A_value, ub_A_value, lb_b_value, ub_b_value, number_of_scenarios
     )
     assert (
-        len(opt_problem_batch.coefficient["scenarios_constraint"])
+        len(opt_problem_batch.coefficient.scenarios_constraint)
         == number_of_scenarios
-    ) & (len(opt_problem_batch.coefficient["scenarios_rhs"]) == number_of_scenarios)
+    ) & (len(opt_problem_batch.coefficient.scenarios_rhs) == number_of_scenarios)
 
 
 def test_batch_solver_solve():

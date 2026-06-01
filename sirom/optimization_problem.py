@@ -47,9 +47,9 @@ class OptimizationProblem:
         self.coefficient = Coefficient(c_validated, A_validated, b_validated)
 
     def __coefficient_validation(
-        self, coefficient: np.ndarray | np.matrix, identification: str
+        self, coefficient: np.ndarray | np.matrix | list, identification: str
     ) -> pd.DataFrame:
-        if not isinstance(coefficient, (np.matrix, np.ndarray)):
+        if not isinstance(coefficient, (np.matrix, np.ndarray, list)):
             self.status.append(
                 "[ERROR] Undefined {} coefficient".format(identification)
             )
