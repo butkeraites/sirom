@@ -26,6 +26,15 @@ def select_solver(optimization_problem: OptimizationProblem) -> str:
     return "GLOP"
 
 
+def solver_available(name: str) -> bool:
+    """Whether an OR-Tools backend can be created in this build.
+
+    Any name OR-Tools recognizes works, including commercial solvers (GUROBI,
+    CPLEX, XPRESS) when OR-Tools is built against them and a license is present.
+    """
+    return pywraplp.Solver.CreateSolver(name) is not None
+
+
 class MiniOrtoolsSolver:
     "Class that translate a Optimization problem to Ortools framework, solve and retrieve solution"
 

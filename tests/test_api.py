@@ -44,6 +44,20 @@ def test_health(client):
     assert resp.json() == {"status": "ok"}
 
 
+def test_solver_override_available(client):
+    body = {**GOOD_PROBLEM, "options": {**GOOD_PROBLEM["options"], "solver": "CLP"}}
+    job = _solve(client, body)
+    assert job["status"] == "succeeded", job
+    assert job["result"]["solutions"]
+
+
+def test_solver_override_unavailable_fails_cleanly(client):
+    body = {**GOOD_PROBLEM, "options": {**GOOD_PROBLEM["options"], "solver": "GUROBI"}}
+    job = _solve(client, body)
+    assert job["status"] == "failed"
+    assert any("not available" in e for e in job["errors"])
+
+
 def test_root_redirects_to_docs(client):
     resp = client.get("/", follow_redirects=False)
     assert resp.status_code in (302, 307)
