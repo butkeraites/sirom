@@ -108,3 +108,34 @@ def test_batch_solver_solve():
         c_value, lb_A_value, ub_A_value, lb_b_value, ub_b_value, number_of_scenarios
     )
     opt_problem_batch.solve()
+
+
+def test_batch_solver_default_number_of_clusters():
+    opt_problem_batch = ProblemsBucket(
+        c_value, lb_A_value, ub_A_value, lb_b_value, ub_b_value, number_of_scenarios
+    )
+    assert opt_problem_batch.number_of_clusters == 3
+
+
+def test_batch_solver_custom_number_of_clusters_is_stored():
+    opt_problem_batch = ProblemsBucket(
+        c_value,
+        lb_A_value,
+        ub_A_value,
+        lb_b_value,
+        ub_b_value,
+        number_of_scenarios,
+        number_of_clusters=5,
+    )
+    assert opt_problem_batch.number_of_clusters == 5
+
+
+def test_batch_solver_quality_measure_skips_non_optimal():
+    # A non-optimal result (no "variable" key) must not crash the quality
+    # measure; it should be scored as never feasible instead.
+    opt_problem_batch = ProblemsBucket(
+        c_value, lb_A_value, ub_A_value, lb_b_value, ub_b_value, number_of_scenarios
+    )
+    opt_problem_batch.results.append({"solve_status": 2})  # INFEASIBLE, no variable
+    opt_problem_batch.apply_quality_measure(number_of_scenarios=5)
+    assert opt_problem_batch.results[-1]["feasibility_probability"] == 0.0

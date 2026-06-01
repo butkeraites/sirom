@@ -106,10 +106,12 @@ class ProblemsBucket:
         lb_b_value: list[Number],
         ub_b_value: list[Number],
         number_of_scenarios: int = 100,
+        number_of_clusters: int = 3,
     ):
         self.status: list[str] = []
         self.results: list[Solution] = []
         self.number_of_scenarios: int = -1
+        self.number_of_clusters: int = number_of_clusters
         c_validated = self.__coefficient_validation(c_value, "objective")
         lb_A_validated = self.__coefficient_validation(lb_A_value, "lb_constraint")
         ub_A_validated = self.__coefficient_validation(ub_A_value, "ub_constraint")
@@ -331,15 +333,27 @@ class ProblemsBucket:
                 parent_node: RootData = cluster_tree.tree_nodes[parent_node_id]["data"]
                 if not parent_node["replicate"]:
                     continue
+                parent_count = parent_node["number_of_points"]
                 nodes: list[RootData] = []
                 kmeans = KMeans(n_clusters=number_of_clusters, random_state=0).fit(
                     parent_node["points_coordinates"]
                 )
                 for node in range(number_of_clusters):
                     res = [x for x, z in enumerate(kmeans.labels_) if z == node]
+                    if not res:
+                        # KMeans can leave a cluster empty when points are
+                        # duplicated; skip it so wcss isn't computed on an
+                        # empty set (which would crash the run).
+                        continue
                     points_coordinates = parent_node["points_coordinates"][res]
                     new_node = RootData(
-                        replicate=len(res) > number_of_clusters,
+                        # Only keep splitting when the cluster has more than k
+                        # points AND the split was productive (it shrank the
+                        # set). When duplicated points all collapse into one
+                        # cluster the child would equal its parent; stopping
+                        # there prevents an infinite subdivision loop.
+                        replicate=(len(res) > number_of_clusters)
+                        and (len(res) < parent_count),
                         points_coordinates=points_coordinates,
                         points_ids=[parent_node["points_ids"][ids] for ids in res],
                         number_of_points=len(res),
@@ -353,11 +367,15 @@ class ProblemsBucket:
         if not self.results:
             return
 
-        number_of_clusters = 3
+        number_of_clusters = self.number_of_clusters
         root_node = []
         for result in self.results:
             if result["solve_status"] == 0:
                 root_node.append([result["objective_value"]] + result["constraint"])
+        if not root_node:
+            # No scenario solved to optimality (e.g. all infeasible); there is
+            # nothing to cluster, so leave the tree unbuilt instead of crashing.
+            return
         self.cluster_tree = ClusterTree(
             {
                 "replicate": True,
@@ -415,6 +433,9 @@ class ProblemsBucket:
             print("[{}] Duration: {}".format(date.today(), toc - tic))
             return mini_ortool.solution
 
+        if not hasattr(self, "cluster_tree"):
+            # No cluster tree was built (no optimal scenarios); nothing to solve.
+            return
         all_nodes = self.cluster_tree.get_all_nodes()
         for node in all_nodes:
             leaf = self.cluster_tree.tree_nodes[node]
@@ -432,6 +453,12 @@ class ProblemsBucket:
         print("[{}] Quality measure application started".format(date.today()))
         for result in self.results:
             tic = time.time()
+            if result.get("solve_status") != 0 or "variable" not in result:
+                # Non-optimal sub-problems (e.g. infeasible scenarios) have no
+                # decision vector to score; treat them as never feasible instead
+                # of crashing the whole run.
+                result["feasibility_probability"] = 0.0
+                continue
             result_feasibility = []
             for scenario in range(len(scenarios_constraint)):
                 constraints_evaluation = (

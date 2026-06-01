@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+otm_env
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+tests/
+.github/
+1-s2.0-S0957417422006947-main.pdf
+*.md
+!README.md
+LICENSE
