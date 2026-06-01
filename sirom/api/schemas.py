@@ -104,6 +104,11 @@ class SolveRequest(BaseModel):
     ub_b: List[float] = Field(
         ..., min_length=1, description="Upper bound of the right-hand-side vector."
     )
+    integer_variables: List[int] = Field(
+        default_factory=list,
+        description="Indices of decision variables constrained to be integers "
+        "(empty = pure LP). Integer problems are solved with a MIP backend.",
+    )
     options: SolveOptions = Field(default_factory=SolveOptions)
 
     model_config = {"json_schema_extra": {"examples": [EXAMPLE_PROBLEM]}}
@@ -152,6 +157,14 @@ class SolveRequest(BaseModel):
                 raise ValueError(
                     f"lb_b[{i}] ({lo}) exceeds ub_b[{i}] ({hi}); lower bounds "
                     "must not exceed upper bounds."
+                )
+
+        # Integer-variable indices must reference real variables.
+        for idx in self.integer_variables:
+            if not (0 <= idx < n_vars):
+                raise ValueError(
+                    f"integer_variables index {idx} is out of range "
+                    f"[0, {n_vars})."
                 )
 
         # Multiplicative work guard.

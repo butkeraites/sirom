@@ -1,13 +1,15 @@
 from numbers import Number
 from typing import TypedDict
 
-from numpy.core.fromnumeric import mean
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans  # type: ignore
 from smt.sampling_methods import LHS  # type: ignore
+from threadpoolctl import threadpool_limits  # type: ignore
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
+import os
 import time
 
 from .cluster_tree import ClusterTree, Leaf, RootData
@@ -74,22 +76,22 @@ class Coefficients:
         return self._ub_rhs
 
     @property
-    def scenarios_constraint(self) -> pd.DataFrame:
-        """Get scenario constraint matrices."""
+    def scenarios_constraint(self) -> "pd.DataFrame | np.ndarray":
+        """Get scenario constraint matrices (an (N, n_con, n_var) array)."""
         return self._scenarios_constraint
 
     @scenarios_constraint.setter
-    def scenarios_constraint(self, value: pd.DataFrame) -> None:
+    def scenarios_constraint(self, value: "pd.DataFrame | np.ndarray") -> None:
         """Set scenario constraint matrices."""
         self._scenarios_constraint = value
 
     @property
-    def scenarios_rhs(self) -> pd.DataFrame:
-        """Get scenario RHS vectors."""
+    def scenarios_rhs(self) -> "pd.DataFrame | np.ndarray":
+        """Get scenario RHS vectors (an (N, n_con, 1) array)."""
         return self._scenarios_rhs
 
     @scenarios_rhs.setter
-    def scenarios_rhs(self, value: pd.DataFrame) -> None:
+    def scenarios_rhs(self, value: "pd.DataFrame | np.ndarray") -> None:
         """Set scenario RHS vectors."""
         self._scenarios_rhs = value
     
@@ -107,11 +109,22 @@ class ProblemsBucket:
         ub_b_value: list[Number],
         number_of_scenarios: int = 100,
         number_of_clusters: int = 3,
+        integer_variables: "list[int] | None" = None,
+        solver_selection: "str | None" = None,
+        n_jobs: int = 1,
     ):
         self.status: list[str] = []
         self.results: list[Solution] = []
         self.number_of_scenarios: int = -1
         self.number_of_clusters: int = number_of_clusters
+        # Integer-variable indices (empty = pure LP) and an optional solver
+        # override; by default the solver is auto-selected per problem.
+        self.integer_variables: list[int] = list(integer_variables or [])
+        self.solver_selection: "str | None" = solver_selection
+        # Threads for the (independent) scenario solves. Default 1 = serial, so
+        # the API's process pool owns parallelism; standalone callers can raise
+        # it (e.g. n_jobs=-1 for all cores).
+        self.n_jobs: int = n_jobs
         c_validated = self.__coefficient_validation(c_value, "objective")
         lb_A_validated = self.__coefficient_validation(lb_A_value, "lb_constraint")
         ub_A_validated = self.__coefficient_validation(ub_A_value, "ub_constraint")
@@ -212,8 +225,8 @@ class ProblemsBucket:
 
     def __generate_coefficients(
         self, number_of_scenarios: int
-    ) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
-        def generate_constraint_coefficient() -> list[pd.DataFrame]:
+    ) -> tuple[np.ndarray, np.ndarray]:
+        def generate_constraint_coefficient() -> np.ndarray:
             (
                 lb_constraint_equations,
                 lb_constraint_coefficients,
@@ -231,21 +244,13 @@ class ProblemsBucket:
             scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(
                 number_of_scenarios, lb_constraint_equations, lb_constraint_coefficients
             )
-            scenarios_constraint: list[pd.DataFrame] = []
-            for scenario_delta_reshaped in range(number_of_scenarios):
-                scenarios_constraint.append(
-                    pd.DataFrame(
-                        self.coefficient.lb_constraint
-                        + (
-                            self.coefficient.ub_constraint
-                            - self.coefficient.lb_constraint
-                        )
-                        * scenarios_delta_reshaped[scenario_delta_reshaped]
-                    )
-                )
-            return scenarios_constraint
+            # lb + (ub - lb) * delta, broadcast across all scenarios at once
+            # -> (N, n_con, n_var). len() and [scenario] indexing are preserved.
+            lower = np.asarray(self.coefficient.lb_constraint, dtype=float)
+            upper = np.asarray(self.coefficient.ub_constraint, dtype=float)
+            return lower[None, :, :] + (upper - lower)[None, :, :] * scenarios_delta_reshaped
 
-        def generate_rhs_coefficient() -> list[pd.DataFrame]:
+        def generate_rhs_coefficient() -> np.ndarray:
             lb_rhs_equations, lb_rhs_coefficients = self.coefficient.lb_rhs.shape
             xlimits = np.array([[0.0, 1.0]] * (lb_rhs_equations * lb_rhs_coefficients))
             sampling = LHS(xlimits=xlimits)
@@ -258,16 +263,11 @@ class ProblemsBucket:
             scenarios_delta_reshaped = scenarios_delta_reshaped.reshape(
                 number_of_scenarios, lb_rhs_equations, lb_rhs_coefficients
             )
-            scenarios_rhs = []
-            for scenario_delta_reshaped in range(number_of_scenarios):
-                scenarios_rhs.append(
-                    self.coefficient.lb_rhs
-                    + (self.coefficient.ub_rhs - self.coefficient.lb_rhs)
-                    * scenarios_delta_reshaped[scenario_delta_reshaped]
-                )
-            return scenarios_rhs
+            lower = np.asarray(self.coefficient.lb_rhs, dtype=float)
+            upper = np.asarray(self.coefficient.ub_rhs, dtype=float)
+            return lower[None, :, :] + (upper - lower)[None, :, :] * scenarios_delta_reshaped
 
-        coefficients: tuple[list[pd.DataFrame], list[pd.DataFrame]] = (
+        coefficients: tuple[np.ndarray, np.ndarray] = (
             generate_constraint_coefficient(),
             generate_rhs_coefficient(),
         )
@@ -282,19 +282,36 @@ class ProblemsBucket:
     def solve(self):
         c_value = np.array(self.coefficient.objective)
         print("[{}] Solve process started".format(date.today()))
-        for scenario in range(self.number_of_scenarios):
-            tic = time.time()
+
+        def solve_scenario(scenario: int) -> Solution:
             A_value = np.matrix(self.coefficient.scenarios_constraint[scenario])
             b_value = np.array(self.coefficient.scenarios_rhs[scenario])
-            optimization_problem = OptimizationProblem(c_value, A_value, b_value)
-            mini_ortool = MiniOrtoolsSolver(optimization_problem)
-            toc = time.time()
-            print(
-                "[{}] Scenario {} | Duration: {}".format(
-                    date.today(), scenario, toc - tic
-                )
+            optimization_problem = OptimizationProblem(
+                c_value, A_value, b_value, integer_variables=self.integer_variables
             )
-            self.results.append(mini_ortool.solution)
+            return MiniOrtoolsSolver(
+                optimization_problem, self.solver_selection
+            ).solution
+
+        scenarios = range(self.number_of_scenarios)
+        workers = self.__resolve_workers(self.number_of_scenarios)
+        if workers == 1:
+            solutions = [solve_scenario(scenario) for scenario in scenarios]
+        else:
+            # Scenario solves are independent; OR-Tools releases the GIL during
+            # Solve(). Pin BLAS to 1 thread so per-thread numpy work doesn't
+            # oversubscribe cores. executor.map keeps results in scenario order.
+            with threadpool_limits(limits=1):
+                with ThreadPoolExecutor(max_workers=workers) as executor:
+                    solutions = list(executor.map(solve_scenario, scenarios))
+        self.results.extend(solutions)
+
+    def __resolve_workers(self, n_tasks: int) -> int:
+        if self.n_jobs in (None, 0, 1):
+            return 1
+        if self.n_jobs < 0:
+            return max(1, min(n_tasks, os.cpu_count() or 1))
+        return max(1, min(self.n_jobs, n_tasks))
 
     def cluster_and_selection(self):
         def calculate_wcss(points_coordinates) -> float:
@@ -427,8 +444,12 @@ class ProblemsBucket:
             if scenarios:
                 A_value, b_value = get_A_and_b_values(scenarios)
 
-            optimization_problem = OptimizationProblem(c_value, A_value, b_value)
-            mini_ortool = MiniOrtoolsSolver(optimization_problem)
+            optimization_problem = OptimizationProblem(
+                c_value, A_value, b_value, integer_variables=self.integer_variables
+            )
+            mini_ortool = MiniOrtoolsSolver(
+                optimization_problem, self.solver_selection
+            )
             toc = time.time()
             print("[{}] Duration: {}".format(date.today(), toc - tic))
             return mini_ortool.solution
@@ -451,6 +472,15 @@ class ProblemsBucket:
             number_of_scenarios
         )
         print("[{}] Quality measure application started".format(date.today()))
+        # Stack the scenarios once: constraint tensor (M, n_con, n_var) and RHS
+        # matrix (M, n_con). Scoring each candidate is then a single batched
+        # matrix-vector product instead of a Python loop over scenarios.
+        constraint_tensor = np.array(
+            [np.asarray(scenario, dtype=float) for scenario in scenarios_constraint]
+        )
+        rhs_matrix = np.array(
+            [np.asarray(rhs, dtype=float).reshape(-1) for rhs in scenarios_rhs]
+        )
         for result in self.results:
             tic = time.time()
             if result.get("solve_status") != 0 or "variable" not in result:
@@ -459,25 +489,15 @@ class ProblemsBucket:
                 # of crashing the whole run.
                 result["feasibility_probability"] = 0.0
                 continue
-            result_feasibility = []
-            for scenario in range(len(scenarios_constraint)):
-                constraints_evaluation = (
-                    pd.DataFrame(
-                        np.dot(
-                            scenarios_constraint[scenario], np.array(result["variable"])
-                        )
-                    )
-                    - scenarios_rhs[scenario]
-                )
-                if constraints_evaluation.max().item() > 0:
-                    result_feasibility.append(0)
-                else:
-                    result_feasibility.append(1)
-            mean_result_feasibility = mean(result_feasibility)
+            variable = np.asarray(result["variable"], dtype=float)
+            # Per scenario, the constraint set is violated iff the max of
+            # (A @ x - b) is strictly positive (matches the original > 0 test).
+            max_violation = (constraint_tensor @ variable - rhs_matrix).max(axis=1)
+            mean_result_feasibility = float(np.mean(max_violation <= 0.0))
             toc = time.time()
             print(
                 "[{}] Quality measurement evaluated: {} - Elapsed time: {}".format(
                     date.today(), mean_result_feasibility, toc - tic
                 )
             )
-            result["feasibility_probability"] = float(mean_result_feasibility)
+            result["feasibility_probability"] = mean_result_feasibility

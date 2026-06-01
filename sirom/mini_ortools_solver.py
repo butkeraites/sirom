@@ -1,7 +1,7 @@
 from __future__ import print_function
 from numbers import Number
 from typing import List, TypedDict
-import pandas as pd
+import numpy as np
 from ortools.linear_solver import pywraplp  # type: ignore
 from .optimization_problem import OptimizationProblem
 
@@ -15,18 +15,31 @@ class Solution(TypedDict):
     log: str
 
 
+def select_solver(optimization_problem: OptimizationProblem) -> str:
+    """Pick the right OR-Tools backend for a problem.
+
+    Pure LPs (all-continuous) get GLOP, OR-Tools' fast simplex solver. Problems
+    with integer variables need a MIP backend, so they get SCIP.
+    """
+    if getattr(optimization_problem, "integer_variables", None):
+        return "SCIP"
+    return "GLOP"
+
+
 class MiniOrtoolsSolver:
     "Class that translate a Optimization problem to Ortools framework, solve and retrieve solution"
 
     def __init__(
         self,
         optimization_problem: OptimizationProblem,
-        solver_selection: str = "SCIP",
+        solver_selection: "str | None" = None,
         print_log: bool = False,
     ):
         self.status: List[str] = []
         self.problem: OptimizationProblem = optimization_problem
-        self.solver_selected: str = solver_selection
+        # None -> auto-select (GLOP for LP, SCIP for MILP). An explicit name is
+        # used verbatim, so an unknown name still surfaces a solver-creation error.
+        self.solver_selected: "str | None" = solver_selection
         self.print_log: bool = print_log
         self.__validate_optimization_problem()
 
@@ -46,6 +59,8 @@ class MiniOrtoolsSolver:
         self.__solve()
 
     def __create_solver(self):
+        if self.solver_selected is None:
+            self.solver_selected = select_solver(self.problem)
         self.solver = pywraplp.Solver.CreateSolver(self.solver_selected)
         if self.solver is None:
             self.status.append("[ERROR] Solver creation failed")
@@ -57,8 +72,12 @@ class MiniOrtoolsSolver:
 
     def __create_variables(self):
         n_var = len(self.problem.coefficient.objective)
+        integer = set(self.problem.integer_variables)
+        infinity = self.solver.infinity()
         self.variables = [
-            self.solver.NumVar(0, self.solver.infinity(), "x{}".format(str(id)))
+            self.solver.IntVar(0, infinity, "x{}".format(str(id)))
+            if id in integer
+            else self.solver.NumVar(0, infinity, "x{}".format(str(id)))
             for id in range(n_var)
         ]
         self.status.append("[OK] Variables creation succeeded")
@@ -68,16 +87,16 @@ class MiniOrtoolsSolver:
 
     def __create_constraints(self):
         self.constraints = []
-        coefficient = self.problem.coefficient.constraint
-        rhs = self.problem.coefficient.rhs
-        for index, row in coefficient.iterrows():
-            constraint = self.solver.Constraint(
-                -self.solver.infinity(), float(rhs.iloc[index])
-            )
-            for index_single_coefficient, single_coefficient in row.items():
-                constraint.SetCoefficient(
-                    self.variables[index_single_coefficient], float(single_coefficient)
-                )
+        constraint_matrix = np.asarray(
+            self.problem.coefficient.constraint, dtype=float
+        )
+        rhs = np.asarray(self.problem.coefficient.rhs, dtype=float).reshape(-1)
+        infinity = self.solver.infinity()
+        for i in range(constraint_matrix.shape[0]):
+            constraint = self.solver.Constraint(-infinity, float(rhs[i]))
+            for j, coefficient in enumerate(constraint_matrix[i]):
+                if coefficient != 0.0:  # unset coefficients default to 0
+                    constraint.SetCoefficient(self.variables[j], float(coefficient))
             self.constraints.append(constraint)
         self.status.append("[OK] Constraints creation succeeded")
         self.status.append(
@@ -86,11 +105,12 @@ class MiniOrtoolsSolver:
 
     def __create_objective_function(self):
         self.objective = self.solver.Objective()
-        coefficients = self.problem.coefficient.objective
-        for index_single_coefficient, single_coefficient in coefficients.iterrows():
-            self.objective.SetCoefficient(
-                self.variables[index_single_coefficient], float(single_coefficient)
-            )
+        coefficients = np.asarray(
+            self.problem.coefficient.objective, dtype=float
+        ).reshape(-1)
+        for j, coefficient in enumerate(coefficients):
+            if coefficient != 0.0:
+                self.objective.SetCoefficient(self.variables[j], float(coefficient))
         self.objective.SetMinimization()
         self.status.append("[OK] Objective function creation succeeded")
 
@@ -112,24 +132,20 @@ class MiniOrtoolsSolver:
 
     def __retrieve_optimal_solution(self):
         variables = [x.solution_value() for x in self.variables]
-        coefficient = self.problem.coefficient.constraint
-        rhs = self.problem.coefficient.rhs
-        objective_coefficient = self.problem.coefficient.objective
-        constraints = [
-            self.__evaluate_equation(row - float(rhs.iloc[index]), variables)
-            for index, row in coefficient.iterrows()
-        ]
-        objective_value = self.__evaluate_equation(objective_coefficient, variables)
+        x = np.asarray(variables, dtype=float)
+        constraint_matrix = np.asarray(
+            self.problem.coefficient.constraint, dtype=float
+        )
+        rhs = np.asarray(self.problem.coefficient.rhs, dtype=float).reshape(-1)
+        objective_coefficient = np.asarray(
+            self.problem.coefficient.objective, dtype=float
+        ).reshape(-1)
+        # NOTE: this preserves the original (peculiar) per-constraint value,
+        # A_i . x - b_i * sum(x), used as a clustering feature downstream --
+        # not the plain slack A_i . x - b_i. Kept identical so this refactor
+        # doesn't change results.
+        constraints = (constraint_matrix @ x - rhs * x.sum()).tolist()
+        objective_value = float(objective_coefficient @ x)
         self.solution["variable"] = variables
         self.solution["constraint"] = constraints
-        self.solution["objective_value"] = float(objective_value)
-
-    def __evaluate_equation(self, coefficients_values, variable_values) -> float:
-        equation_value = 0.0
-        if type(variable_values) == pd.Series:
-            for index, value in variable_values.items():
-                equation_value += value * coefficients_values.iloc[index]
-        else:
-            for index, value in enumerate(variable_values):
-                equation_value += value * coefficients_values.iloc[index]
-        return equation_value
+        self.solution["objective_value"] = objective_value
