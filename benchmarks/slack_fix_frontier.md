@@ -25,12 +25,27 @@ Mean Jaccard overlap ≈ **0.24**. Best objective achievable at a given
 feasibility level differed by only small, mixed-sign amounts (typically within
 ~±0.04 of an objective of magnitude 12–14; one outlier ~0.22 at seed 1).
 
+XL instance (50 vars × 150 constraints, N=400): **2 of ~15 points identical**
+(Jaccard ≈ 0.07), ranges still identical, trade-off deltas < 0.4% of an
+objective of magnitude ~32.
+
+### Overlap shrinks with problem size
+
+| instance | variables | frontier overlap (Jaccard) |
+|---|---|---|
+| 6 × 15 | 6 | ~0.83 |
+| 20 × 50 | 20 | ~0.24 |
+| 50 × 150 | 50 | ~0.07 |
+
+Monotonic: more variables ⇒ larger `sum(x)` ⇒ bigger `b·(sum(x) − 1)` error ⇒
+the cluster trees, and thus the frontier's specific points, diverge more.
+
 ## Conclusion
 
-- **Structural change is large and grows with problem size** — only ~24% of
-  frontier points overlap on the larger instance (vs ~83% on the small one).
-  The error term `b·(sum(x) − 1)` scales with `sum(x)`, so more variables ⇒
-  more divergence. Consistent across all 5 seeds.
+- **Structural change is large and grows with problem size** — frontier-point
+  overlap falls from ~83% (6 vars) to ~24% (20 vars) to ~7% (50 vars). The
+  error term `b·(sum(x) − 1)` scales with `sum(x)`, so more variables ⇒ more
+  divergence. Consistent across all 5 seeds at 20×50.
 - **The decision-relevant envelope is stable** — objective and feasibility
   ranges matched exactly on every seed, and neither formula systematically
   dominates the cost-vs-robustness trade-off.
