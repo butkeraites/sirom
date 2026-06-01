@@ -12,6 +12,7 @@ dist/
 tests/
 benchmarks/
 docs/
+demo/
 .github/
 1-s2.0-S0957417422006947-main.pdf
 *.md
