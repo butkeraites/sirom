@@ -29,6 +29,7 @@ dev = [
     "black",
     "httpx",
     "fakeredis",
+    "matplotlib",
 ]
 
 [tool.setuptools.packages.find]

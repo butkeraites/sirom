@@ -10,6 +10,8 @@ dist/
 .pytest_cache/
 .mypy_cache/
 tests/
+benchmarks/
+docs/
 .github/
 1-s2.0-S0957417422006947-main.pdf
 *.md

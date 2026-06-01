@@ -29,6 +29,15 @@ flowchart LR
     E --> F["Pareto frontier<br/>objective vs robustness"]
 ```
 
+The payoff is a frontier of candidate solutions — here, the built-in
+`/example` problem:
+
+![Example Pareto frontier: objective value vs. feasibility probability](docs/frontier_example.png)
+
+*Each point is a candidate solution. Moving right trades a better objective
+value for higher robustness; you pick the operating point.* (Regenerate with
+`python benchmarks/plot_frontier.py`.)
+
 It implements the method from the peer-reviewed paper (Butkeraites, de Salles
 Neto & Gendreau, *Expert Systems with Applications*, 2022 — see
 [Citation](#citation)) and ships it as a deployable HTTP service.
