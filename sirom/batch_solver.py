@@ -3,7 +3,6 @@ from typing import TypedDict
 
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans  # type: ignore
 from smt.sampling_methods import LHS  # type: ignore
 from threadpoolctl import threadpool_limits  # type: ignore
 
@@ -12,7 +11,7 @@ from datetime import date
 import os
 import time
 
-from .cluster_tree import ClusterTree, Leaf, RootData
+from .cluster_tree import ClusterTree
 from .mini_ortools_solver import (
     MiniOrtoolsSolver,
     UnscoredSolution,
@@ -320,77 +319,11 @@ class ProblemsBucket:
         return max(1, min(self.n_jobs, n_tasks))
 
     def cluster_and_selection(self):
-        def calculate_wcss(points_coordinates) -> float:
-            kmeans = KMeans(n_clusters=1, random_state=0).fit(points_coordinates)
-            return kmeans.inertia_
-
-        def close_nodes(nodes):
-            max_number_of_points = {"id": -1, "number_of_points": 0}
-            max_wcss = {"id": -1, "wcss": 0}
-            for node in range(len(nodes)):
-                if (
-                    nodes[node]["number_of_points"]
-                    > max_number_of_points["number_of_points"]
-                ):
-                    max_number_of_points = {
-                        "id": node,
-                        "number_of_points": nodes[node]["number_of_points"],
-                    }
-                if nodes[node]["wcss"] > max_wcss["wcss"]:
-                    max_wcss = {"id": node, "wcss": nodes[node]["wcss"]}
-            for node in range(len(nodes)):
-                if (node != max_number_of_points["id"]) & (node != max_wcss["id"]):
-                    nodes[node]["replicate"] = False
-            return nodes
-
-        def nodes_can_be_divided(cluster_tree):
-            all_nodes = cluster_tree.get_all_nodes()
-            for node in all_nodes:
-                if cluster_tree.tree_nodes[node]["data"]["replicate"]:
-                    return True
-            return False
-
-        def divide_nodes(cluster_tree: ClusterTree, number_of_clusters):
-            parent_nodes = cluster_tree.get_all_nodes()
-            for parent_node_id in parent_nodes:
-                parent_node: RootData = cluster_tree.tree_nodes[parent_node_id]["data"]
-                if not parent_node["replicate"]:
-                    continue
-                parent_count = parent_node["number_of_points"]
-                nodes: list[RootData] = []
-                kmeans = KMeans(n_clusters=number_of_clusters, random_state=0).fit(
-                    parent_node["points_coordinates"]
-                )
-                for node in range(number_of_clusters):
-                    res = [x for x, z in enumerate(kmeans.labels_) if z == node]
-                    if not res:
-                        # KMeans can leave a cluster empty when points are
-                        # duplicated; skip it so wcss isn't computed on an
-                        # empty set (which would crash the run).
-                        continue
-                    points_coordinates = parent_node["points_coordinates"][res]
-                    new_node = RootData(
-                        # Only keep splitting when the cluster has more than k
-                        # points AND the split was productive (it shrank the
-                        # set). When duplicated points all collapse into one
-                        # cluster the child would equal its parent; stopping
-                        # there prevents an infinite subdivision loop.
-                        replicate=(len(res) > number_of_clusters)
-                        and (len(res) < parent_count),
-                        points_coordinates=points_coordinates,
-                        points_ids=[parent_node["points_ids"][ids] for ids in res],
-                        number_of_points=len(res),
-                        wcss=calculate_wcss(points_coordinates),
-                    )
-                    nodes.append(new_node)
-                nodes = close_nodes(nodes)
-                cluster_tree.create_nodes(parent_node_id, nodes)
-                cluster_tree.tree_nodes[parent_node_id]["data"]["replicate"] = False
-
         if not self.results:
             return
 
-        number_of_clusters = self.number_of_clusters
+        # Each optimal scenario solution becomes a clustering point:
+        # [objective_value] + constraint slacks.
         root_node = []
         for result in self.results:
             if is_optimal(result):
@@ -399,21 +332,11 @@ class ProblemsBucket:
             # No scenario solved to optimality (e.g. all infeasible); there is
             # nothing to cluster, so leave the tree unbuilt instead of crashing.
             return
-        self.cluster_tree = ClusterTree(
-            {
-                "replicate": True,
-                "points_ids": [point_id for point_id in range(len(root_node))],
-                "points_coordinates": np.asarray(root_node),
-                "number_of_points": len(root_node),
-                "wcss": calculate_wcss(np.asarray(root_node)),
-            }
-        )
+
         print("[{}] Cluser and Selection started".format(date.today()))
-        while nodes_can_be_divided(self.cluster_tree):
-            tic = time.time()
-            divide_nodes(self.cluster_tree, number_of_clusters)
-            toc = time.time()
-            print("[{}] Duration: {}".format(date.today(), toc - tic))
+        # The tree owns the split/select/terminate algorithm; the orchestrator
+        # only hands it the root points.
+        self.cluster_tree = ClusterTree.build(root_node, self.number_of_clusters)
 
     def solve_cluster_tree(self):
         def solve_optimization_problem(scenarios: list[int]):
