@@ -6,7 +6,7 @@ turns it into a **robust** vehicle routing problem, and solves it by talking to
 the **SIROM HTTP API over the network** — a "SIROM-as-a-service" demo that runs
 entirely in Docker.
 
-![architecture](docs-placeholder)
+![SIROM robust CVRP demo — routes and the distance-vs-robustness frontier](docs/screenshot.png)
 
 ## The idea
 
