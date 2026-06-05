@@ -1,18 +1,47 @@
 from __future__ import print_function
-from numbers import Number
 from typing import List, TypedDict
 import numpy as np
 from ortools.linear_solver import pywraplp  # type: ignore
 from .optimization_problem import OptimizationProblem
 
 
-class Solution(TypedDict):
-    variable: List[Number]
-    constraint: List[Number]
-    objective_value: Number
-    solve_status: str
+class _OptionalSolutionKeys(TypedDict, total=False):
+    # Present only on an optimal solve.
+    variable: List[float]
+    constraint: List[float]
+    objective_value: float
+
+
+class UnscoredSolution(_OptionalSolutionKeys):
+    """What :class:`MiniOrtoolsSolver` produces from one scenario.
+
+    ``solve_status`` is always present; the decision vector and its derived
+    fields appear only when the solve reached optimality. It carries no
+    feasibility probability — the solver does not produce one.
+    """
+
+    solve_status: int
+
+
+class ScoredSolution(UnscoredSolution):
+    """An Unscored Solution after the Scoring stage has added its feasibility."""
+
     feasibility_probability: float
-    log: str
+
+
+def is_optimal(solution: "UnscoredSolution") -> bool:
+    """Whether a solve reached optimality (and so carries a decision vector)."""
+    return solution["solve_status"] == 0
+
+
+def feasibility(solution: "ScoredSolution") -> float:
+    """The feasibility probability of a scored solution."""
+    return solution["feasibility_probability"]
+
+
+def score(solution: "UnscoredSolution", probability: float) -> "ScoredSolution":
+    """The one transform that turns an Unscored Solution into a Scored one."""
+    return {**solution, "feasibility_probability": probability}
 
 
 def select_solver(optimization_problem: OptimizationProblem) -> str:
@@ -132,12 +161,15 @@ class MiniOrtoolsSolver:
         self.__retrieve_solution()
 
     def __retrieve_solution(self):
-        self.solution = Solution()
+        # The solver produces an Unscored Solution: solve_status always, the
+        # decision vector and its derived fields only when optimal. Scoring
+        # (apply_quality_measure) is what later adds feasibility_probability.
+        self.solution: UnscoredSolution = {"solve_status": self.solve_status}
         if self.solve_status == self.solver.OPTIMAL:
             self.__retrieve_optimal_solution()
-        self.solution["solve_status"] = self.solve_status
         if self.print_log:
-            self.solution["log"] = self.status + self.problem.status
+            # Debug trace, not part of the solution contract; kept off the dict.
+            self.log: List[str] = self.status + self.problem.status
 
     def __retrieve_optimal_solution(self):
         variables = [x.solution_value() for x in self.variables]

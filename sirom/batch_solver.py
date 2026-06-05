@@ -13,7 +13,12 @@ import os
 import time
 
 from .cluster_tree import ClusterTree, Leaf, RootData
-from .mini_ortools_solver import MiniOrtoolsSolver, Solution
+from .mini_ortools_solver import (
+    MiniOrtoolsSolver,
+    UnscoredSolution,
+    is_optimal,
+    score,
+)
 from .optimization_problem import OptimizationProblem
 
 
@@ -114,7 +119,7 @@ class ProblemsBucket:
         n_jobs: int = 1,
     ):
         self.status: list[str] = []
-        self.results: list[Solution] = []
+        self.results: list[UnscoredSolution] = []
         self.number_of_scenarios: int = -1
         self.number_of_clusters: int = number_of_clusters
         # Integer-variable indices (empty = pure LP) and an optional solver
@@ -283,7 +288,7 @@ class ProblemsBucket:
         c_value = np.array(self.coefficient.objective)
         print("[{}] Solve process started".format(date.today()))
 
-        def solve_scenario(scenario: int) -> Solution:
+        def solve_scenario(scenario: int) -> UnscoredSolution:
             A_value = np.matrix(self.coefficient.scenarios_constraint[scenario])
             b_value = np.array(self.coefficient.scenarios_rhs[scenario])
             optimization_problem = OptimizationProblem(
@@ -387,7 +392,7 @@ class ProblemsBucket:
         number_of_clusters = self.number_of_clusters
         root_node = []
         for result in self.results:
-            if result["solve_status"] == 0:
+            if is_optimal(result):
                 root_node.append([result["objective_value"]] + result["constraint"])
         if not root_node:
             # No scenario solved to optimality (e.g. all infeasible); there is
@@ -481,13 +486,13 @@ class ProblemsBucket:
         rhs_matrix = np.array(
             [np.asarray(rhs, dtype=float).reshape(-1) for rhs in scenarios_rhs]
         )
-        for result in self.results:
+        for index, result in enumerate(self.results):
             tic = time.time()
-            if result.get("solve_status") != 0 or "variable" not in result:
+            if not is_optimal(result):
                 # Non-optimal sub-problems (e.g. infeasible scenarios) have no
                 # decision vector to score; treat them as never feasible instead
                 # of crashing the whole run.
-                result["feasibility_probability"] = 0.0
+                self.results[index] = score(result, 0.0)
                 continue
             variable = np.asarray(result["variable"], dtype=float)
             # Per scenario, the constraint set is violated iff the max of
@@ -500,4 +505,4 @@ class ProblemsBucket:
                     date.today(), mean_result_feasibility, toc - tic
                 )
             )
-            result["feasibility_probability"] = mean_result_feasibility
+            self.results[index] = score(result, mean_result_feasibility)
