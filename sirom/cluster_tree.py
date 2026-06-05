@@ -3,7 +3,7 @@ import uuid
 
 import numpy as np
 
-from sirom.mini_ortools_solver import Solution
+from sirom.mini_ortools_solver import UnscoredSolution
 
 
 class RootData(TypedDict):
@@ -20,7 +20,7 @@ class Leaf(TypedDict):
 
 
 class SolvedLeaf(Leaf):
-    problem: Solution
+    problem: UnscoredSolution
 
 
 class ClusterTree:

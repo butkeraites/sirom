@@ -16,7 +16,7 @@ import time
 from typing import Any, Dict, List, Tuple
 
 from sirom.batch_solver import ProblemsBucket
-from sirom.mini_ortools_solver import solver_available
+from sirom.mini_ortools_solver import feasibility, is_optimal, solver_available
 
 from .errors import SolveError, friendly_messages, has_errors
 from .schemas import (
@@ -119,17 +119,16 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
     n_scenarios = opts.number_of_scenarios
     scenario_results = results[:n_scenarios]
     cluster_results = results[n_scenarios:]
-    scenarios_optimal = sum(
-        1 for r in scenario_results if r.get("solve_status") == 0
-    )
+    scenarios_optimal = sum(1 for r in scenario_results if is_optimal(r))
 
     candidates: List[Tuple[float, float, List[float]]] = []
     for r in results:
-        if r.get("solve_status") == 0 and "variable" in r and "objective_value" in r:
+        # Every result is scored by this point; optimal ones carry the vector.
+        if is_optimal(r):
             candidates.append(
                 (
                     float(r["objective_value"]),
-                    float(r.get("feasibility_probability", 0.0)),
+                    feasibility(r),
                     [float(v) for v in r["variable"]],
                 )
             )
