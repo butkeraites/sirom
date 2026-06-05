@@ -13,10 +13,15 @@ from __future__ import annotations
 import contextlib
 import io
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, cast
 
 from sirom.batch_solver import ProblemsBucket
-from sirom.mini_ortools_solver import feasibility, is_optimal, solver_available
+from sirom.mini_ortools_solver import (
+    ScoredSolution,
+    feasibility,
+    is_optimal,
+    solver_available,
+)
 
 from .errors import SolveError, friendly_messages, has_errors
 from .schemas import (
@@ -115,11 +120,14 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
             ]
         )
 
-    results: List[Dict[str, Any]] = bucket.results
+    # Every result is scored by this point (apply_quality_measure has run).
+    results = cast(List[ScoredSolution], bucket.results)
     n_scenarios = opts.number_of_scenarios
-    scenario_results = results[:n_scenarios]
-    cluster_results = results[n_scenarios:]
-    scenarios_optimal = sum(1 for r in scenario_results if is_optimal(r))
+    # The first n_scenarios results are the scenario solves; the cluster
+    # re-solves follow. Count optimal scenarios from the cheap order-stable
+    # prefix; the cluster node count comes from the tree itself (below), not
+    # from slicing the results list by append order.
+    scenarios_optimal = sum(1 for r in results[:n_scenarios] if is_optimal(r))
 
     candidates: List[Tuple[float, float, List[float]]] = []
     for r in results:
@@ -159,7 +167,11 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
     summary = SolveSummary(
         scenarios_solved=n_scenarios,
         scenarios_optimal=scenarios_optimal,
-        cluster_nodes=len(cluster_results),
+        cluster_nodes=(
+            len(bucket.cluster_tree.get_all_nodes())
+            if getattr(bucket, "cluster_tree", None) is not None
+            else 0
+        ),
         candidate_solutions=len(solutions),
         best_feasibility=max((s.feasibility_probability for s in solutions), default=0.0),
         runtime_seconds=round(time.time() - started, 4),
