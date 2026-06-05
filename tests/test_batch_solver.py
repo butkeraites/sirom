@@ -177,3 +177,15 @@ def test_batch_solver_quality_measure_skips_non_optimal():
     opt_problem_batch.results.append({"solve_status": 2})  # INFEASIBLE, no variable
     opt_problem_batch.apply_quality_measure(number_of_scenarios=5)
     assert opt_problem_batch.results[-1]["feasibility_probability"] == 0.0
+
+
+def test_cluster_and_selection_builds_tree():
+    # End-to-end: solve scenarios then cluster — the tree must be built and
+    # owned by ClusterTree.build (the orchestrator only hands it root points).
+    bucket = ProblemsBucket(
+        c_value, lb_A_value, ub_A_value, lb_b_value, ub_b_value, number_of_scenarios
+    )
+    bucket.solve()
+    bucket.cluster_and_selection()
+    assert bucket.cluster_tree is not None
+    assert len(bucket.cluster_tree.get_all_nodes()) >= 1
