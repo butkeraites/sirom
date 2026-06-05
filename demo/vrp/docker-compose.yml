@@ -1,0 +1,68 @@
+# Self-contained robust-CVRP demo. One command brings up the whole stack:
+#
+#     cd demo/vrp && docker compose up --build
+#     # open http://localhost:3001
+#
+# Data flow:
+#   browser -> vrp-web (Next.js, host :3001)
+#           -> vrp-backend (FastAPI, :8801)  [parses VRP-REP, builds the MILP]
+#           -> sirom-api   (SIROM HTTP API, :8000, internal)  [solves]
+#           -> redis       (job state, internal)
+# vrp-backend also reaches the public internet to download VRP-REP datasets.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  sirom-api:
+    # Built from the repo root Dockerfile — this is "the SIROM docker".
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: sirom-api
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      SIROM_JOB_STORE: redis
+      SIROM_REDIS_URL: redis://redis:6379/0
+    command: ["uvicorn", "sirom.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  vrp-backend:
+    build:
+      context: ./backend
+    image: sirom-vrp-backend
+    restart: unless-stopped
+    depends_on:
+      sirom-api:
+        condition: service_healthy
+    environment:
+      SIROM_API_URL: http://sirom-api:8000
+    ports:
+      - "8801:8801"   # exposed for debugging / curl; the browser goes via vrp-web
+
+  vrp-web:
+    build:
+      context: ./web
+      # Backend URL as the browser sees it (the published vrp-backend port).
+      args:
+        NEXT_PUBLIC_VRP_API: http://localhost:8801
+    image: sirom-vrp-web
+    restart: unless-stopped
+    depends_on:
+      - vrp-backend
+    ports:
+      - "3001:3000"
