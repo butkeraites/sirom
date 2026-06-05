@@ -20,6 +20,7 @@ from .mini_ortools_solver import (
     score,
 )
 from .optimization_problem import OptimizationProblem
+from .status_checks import has_errors
 
 
 class Coefficients:
@@ -150,7 +151,7 @@ class ProblemsBucket:
         lb_b_validated,
         ub_b_validated,
     ):
-        if any("[ERROR]" in status for status in self.status):
+        if has_errors(self.status):
             self.status.append("[ERROR] Coefficient cannot be defined")
             return
         self.coefficient = Coefficients(
@@ -183,7 +184,7 @@ class ProblemsBucket:
             return pd.DataFrame()
 
     def __dimension_validation(self):
-        if any("[ERROR]" in status for status in self.status):
+        if has_errors(self.status):
             self.status.append("[ERROR] Dimension can not be evaluated")
             return
         objective_coefficients, objective_equations = self.coefficient.objective.shape
@@ -222,7 +223,7 @@ class ProblemsBucket:
         self.status.append("[OK] Successfuly acquired number of scenarios")
 
     def __problem_integrity_validation(self):
-        if any("[ERROR]" in status for status in self.status):
+        if has_errors(self.status):
             self.status.append("[ERROR] Optimization batch creation failed")
             return
         self.__generate_all_coefficients()
