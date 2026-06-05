@@ -3,6 +3,7 @@ from typing import List, TypedDict
 import numpy as np
 from ortools.linear_solver import pywraplp  # type: ignore
 from .optimization_problem import OptimizationProblem
+from .status_checks import has_errors
 
 
 class _OptionalSolutionKeys(TypedDict, total=False):
@@ -89,7 +90,7 @@ class MiniOrtoolsSolver:
         self.__start_optimization_chain()
 
     def __start_optimization_chain(self):
-        if any("[ERROR]" in status for status in self.problem.status):
+        if has_errors(self.problem.status):
             self.status.append("[ERROR] Optimization problem creation failed")
             return
         self.status.append("[OK] Optimization problem creation succeeded")
@@ -153,7 +154,7 @@ class MiniOrtoolsSolver:
         self.status.append("[OK] Objective function creation succeeded")
 
     def __solve(self):
-        if any("[ERROR]" in status for status in self.status):
+        if has_errors(self.status):
             self.status.append("[ERROR] Solving process failed")
             return
         self.solve_status = self.solver.Solve()

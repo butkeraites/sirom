@@ -2,6 +2,8 @@ from typing import List
 import pandas as pd
 import numpy as np
 
+from .status_checks import has_errors
+
 
 class Coefficient:
     def __init__(self, c, A, b):
@@ -45,7 +47,7 @@ class OptimizationProblem:
         self.__problem_integrity_validation()
 
     def __set_coefficient(self, c_validated, A_validated, b_validated):
-        if any("[ERROR]" in status for status in self.status):
+        if has_errors(self.status):
             self.status.append("[ERROR] Coefficient cannot be defined")
             return
         self.coefficient = Coefficient(c_validated, A_validated, b_validated)
@@ -69,7 +71,7 @@ class OptimizationProblem:
         )
 
     def __dimension_validation(self):
-        if any("[ERROR]" in status for status in self.status):
+        if has_errors(self.status):
             self.status.append("[ERROR] Dimension can not be evaluated")
             return
         objective_coefficients, objective_equations = self.coefficient.objective.shape
@@ -89,7 +91,7 @@ class OptimizationProblem:
         self.status.append("[OK] Optimization problem creation succeeded")
 
     def __problem_integrity_validation(self):
-        if any("[ERROR]" in status for status in self.status):
+        if has_errors(self.status):
             self.status.append("[ERROR] Optimization problem creation failed")
             return
         self.status.append("[OK] Optimization problem creation succeeded")
