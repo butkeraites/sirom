@@ -42,6 +42,23 @@ python benchmarks/frontier_diff.py    # compare frontiers across versions/config
 CI (`.github/workflows/ci.yml`) runs the test suite and a Docker image build on
 every PR; both must be green to merge. Benchmarks are **not** run in CI.
 
+## Cutting a release
+
+1. **One PR** bumps `version` in `pyproject.toml` **and** prepends the
+   `## [X.Y.Z]` section (plus the link reference) to `CHANGELOG.md`. The git
+   `pre-commit` hook, the Claude Code hook, and the CI `changelog-guard` job all
+   enforce that the two ship together.
+2. Merge once green, then tag and publish:
+   ```bash
+   git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z
+   gh release create vX.Y.Z --title "SIROM vX.Y.Z" --latest --notes-file -   # reuse the CHANGELOG section
+   python scripts/refresh_release_index.py                                   # refresh the "Changelog index" on every release
+   ```
+
+The last step keeps the cross-release **Changelog index** (a footer on every
+release linking to all versions) current — a new release otherwise leaves every
+prior release's index stale. The script is idempotent; `--dry-run` previews it.
+
 ## Project conventions
 
 These are load-bearing — please follow them (details in [CLAUDE.md](CLAUDE.md)):
