@@ -51,3 +51,38 @@ The accessor that answers "did this solve reach optimality" (`solve_status == 0`
 The one place that test lives, replacing the hand-rolled `solve_status == 0 and
 "variable" in r` guards at the call sites.
 _Avoid_: is_solved, is_valid.
+
+### The cluster tree
+
+**Cluster tree**:
+A UUID-keyed tree of nodes, each holding a set of solution points
+(`[objective_value] + constraint slacks`), grown by splitting the most-promising
+nodes into KMeans clusters until none remain splittable. It owns its own
+subdivision.
+_Avoid_: cluster graph, dendrogram.
+
+**build**:
+The transform `(root_points, number_of_clusters) → ClusterTree`. The single,
+named place the tree seeds its root and runs the split/select/terminate loop —
+the cluster-tree counterpart of **score**.
+_Avoid_: cluster, fit, grow.
+
+**replicate**:
+The private flag on a cluster-tree node meaning "still splittable". The
+subdivision loop clears it as nodes are exhausted; nothing outside the tree
+reads or writes it.
+_Avoid_: divisible, active, open.
+
+### Validation status
+
+**Status**:
+The list of `[OK]` / `[ERROR]` / `[INFO]` messages a validating object
+accumulates as it runs; each step in a validation chain gates on it before
+proceeding.
+_Avoid_: log, errors, messages.
+
+**has_errors**:
+The single gate over a **Status** — true when any `[ERROR]` message is present.
+The one place that test lives, at the core level so the algorithm modules need
+not import the HTTP layer.
+_Avoid_: is_valid, failed, ok.
