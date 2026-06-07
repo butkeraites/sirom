@@ -4,6 +4,14 @@ All notable changes to SIROM are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] — 2026-06-07
+
+Documentation patch. No library code or API change.
+
+### Added
+- A "Release history" table in `README.md` linking each version to its GitHub
+  release, its milestone (with PR count), and `CHANGELOG.md`.
+
 ## [0.4.3] — 2026-06-07
 
 Tooling / process patch. No library code or API change.
@@ -109,6 +117,7 @@ Initial implementation of the Simulation-based Robust Optimization Method
 (unreleased; superseded by 0.2.0). Implements the method from Butkeraites,
 de Salles Neto & Gendreau, *Expert Systems with Applications* 203:117337 (2022).
 
+[0.4.4]: https://github.com/butkeraites/sirom/releases/tag/v0.4.4
 [0.4.3]: https://github.com/butkeraites/sirom/releases/tag/v0.4.3
 [0.4.2]: https://github.com/butkeraites/sirom/releases/tag/v0.4.2
 [0.4.1]: https://github.com/butkeraites/sirom/releases/tag/v0.4.1
