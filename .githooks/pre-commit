@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Repo-wide release guard (git pre-commit).
+#
+# A commit that bumps pyproject.toml's version (`version = "..."`) must also
+# stage CHANGELOG.md, so a version bump always carries its changelog entry.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+# Bypass intentionally:    git commit --no-verify
+
+version_changed=$(git diff --cached -U0 -- pyproject.toml | grep -E '^\+version = ')
+changelog_staged=$(git diff --cached --name-only | grep -E '(^|/)CHANGELOG\.md$')
+
+if [ -n "$version_changed" ] && [ -z "$changelog_staged" ]; then
+  echo "✖ pre-commit: pyproject.toml version changed without a CHANGELOG.md entry." >&2
+  echo "  Add the new [X.Y.Z] section to CHANGELOG.md and stage it (or commit with" >&2
+  echo "  --no-verify to bypass). See CONTRIBUTING.md and CHANGELOG.md." >&2
+  exit 1
+fi
+exit 0
