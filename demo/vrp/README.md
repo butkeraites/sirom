@@ -121,7 +121,8 @@ itself.
 - **Who computes robustness, and why.** SIROM *generates* the candidate
   routings (it samples demand/time scenarios, solves a MILP for each, and
   clusters the results). It does **not** decide each routing's robustness score
-  here: SIROM measures feasibility on the full decision vector, which includes
+  here: SIROM measures feasibility on the full decision vector (as of v0.4.0 an
+  explicit `score()` stage that produces a `ScoredSolution`), which includes
   the MTZ load variables `u_i`. Those are *free* at the optimum (the objective
   is distance, not load), so the solver returns arbitrary feasible values and
   two physically-identical routings — e.g. the same tour traversed in opposite
@@ -138,3 +139,22 @@ itself.
   point's robustness *meaningful and α-responsive* rather than pinned at 100%.
   For rich multi-point frontiers use **demand** mode, where distance and capacity
   are decorrelated (a cheap routing can be capacity-fragile).
+
+## Built on SIROM v0.4.0
+
+This demo runs against the
+[SIROM v0.4.0](https://github.com/butkeraites/sirom/releases/tag/v0.4.0) HTTP
+API (the `docker-compose.yml` builds `sirom-api` from the repo root). v0.4.0
+deepened the SIROM core — an honest two-stage `Solution` contract
+(`UnscoredSolution` → `ScoredSolution` via an explicit `score()`), `ClusterTree`
+owning its own subdivision algorithm, a single core `has_errors` gate, and a
+results-handling cleanup — **without changing the `POST /solve` →
+`GET /jobs/{id}` contract this demo consumes**, so the demo is unaffected by the
+refactors.
+
+One of those changes is directly relevant here: v0.4.0 made
+`feasibility_probability` a separately-produced stage, but it is still measured
+on the *full decision vector* (including the free MTZ load variables) — which is
+exactly why this demo scores robustness on the decoded routes instead (see *Who
+computes robustness* above).
+
