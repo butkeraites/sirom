@@ -22,6 +22,30 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+  changelog-guard:
+    # Un-bypassable backstop for the release convention: a PR that bumps
+    # pyproject.toml's version must also touch CHANGELOG.md. Complements the
+    # local git pre-commit hook (.githooks/) and the Claude Code hook, which
+    # are opt-in / --no-verify-bypassable.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require a CHANGELOG.md entry for version bumps
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null \
+            || git fetch --no-tags --depth=1 origin "$BASE_SHA" 2>/dev/null || true
+          if git diff "$BASE_SHA"...HEAD -- pyproject.toml | grep -qE '^\+version = ' \
+             && ! git diff --name-only "$BASE_SHA"...HEAD | grep -qE '(^|/)CHANGELOG\.md$'; then
+            echo "::error file=pyproject.toml::pyproject.toml version changed without a CHANGELOG.md entry in this PR. Add the [X.Y.Z] section to CHANGELOG.md (see CONTRIBUTING.md)."
+            exit 1
+          fi
+          echo "changelog guard: OK"
+
   docker-build:
     runs-on: ubuntu-latest
     needs: test
