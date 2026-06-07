@@ -12,7 +12,16 @@ Python **3.11** is the tested target (the package declares `>=3.8`).
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[api,dev]"     # algorithm + HTTP API + test/dev tools
 pytest                          # run the suite (should be all green)
+git config core.hooksPath .githooks   # enable the repo's git hooks (one-time)
 ```
+
+### Git hooks
+
+The repo ships a `pre-commit` hook in `.githooks/` that blocks a commit which
+bumps `pyproject.toml`'s version without also staging a `CHANGELOG.md` entry, so
+a version bump always carries its changelog. Git doesn't auto-enable repo hooks
+(for security), so run the one-time `git config core.hooksPath .githooks` above.
+Bypass deliberately with `git commit --no-verify`.
 
 Useful commands:
 
