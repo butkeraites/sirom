@@ -132,3 +132,7 @@ otm_env/lib64
 
 # Reference paper (kept locally, not committed)
 1-s2.0-S0957417422006947-main.pdf
+
+# Personal, machine-local Claude Code overrides (the committed .claude/settings.json
+# carries the shared team hooks)
+.claude/settings.local.json
