@@ -217,6 +217,21 @@ python benchmarks/bench_pipeline.py   # per-phase performance benchmark
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
 conventions, and the PR workflow.
 
+## Release history
+
+Each release has a [GitHub release](https://github.com/butkeraites/sirom/releases)
+with full notes and a closed [milestone](https://github.com/butkeraites/sirom/milestones)
+grouping its PRs; the per-version detail is in [CHANGELOG.md](CHANGELOG.md).
+
+| Version | Highlights | Milestone |
+|---------|------------|-----------|
+| [v0.4.3](https://github.com/butkeraites/sirom/releases/tag/v0.4.3) | Release-index tooling & "Cutting a release" docs | [2 PRs](https://github.com/butkeraites/sirom/milestone/2) |
+| [v0.4.2](https://github.com/butkeraites/sirom/releases/tag/v0.4.2) | `CHANGELOG.md` + version-bump↔changelog guards (CI, git, Claude Code) | [5 PRs](https://github.com/butkeraites/sirom/milestone/4) |
+| [v0.4.1](https://github.com/butkeraites/sirom/releases/tag/v0.4.1) | Docs: demo README, `CONTEXT.md` vocabulary | [3 PRs](https://github.com/butkeraites/sirom/milestone/3) |
+| [v0.4.0](https://github.com/butkeraites/sirom/releases/tag/v0.4.0) | Architecture deepening (honest `Solution`, `ClusterTree.build`, ADRs) | [5 PRs](https://github.com/butkeraites/sirom/milestone/1) |
+| [v0.3.0](https://github.com/butkeraites/sirom/releases/tag/v0.3.0) | Robust CVRP demo over VRP-REP | [2 PRs](https://github.com/butkeraites/sirom/milestone/5) |
+| [v0.2.0](https://github.com/butkeraites/sirom/releases/tag/v0.2.0) | HTTP API, Docker, MILP, ~9–29× speedup, portfolio demo | [21 PRs](https://github.com/butkeraites/sirom/milestone/6) |
+
 ## Citation
 
 If you use SIROM in academic work, please cite:
