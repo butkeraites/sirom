@@ -6,7 +6,7 @@
 # everything; the runtime stage installs those wheels into a clean slim image
 # with no compiler, keeping it small and portable across architectures.
 
-FROM python:3.11-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -21,7 +21,7 @@ COPY requirements.txt requirements-api.txt ./
 RUN pip wheel --wheel-dir /wheels -r requirements-api.txt
 
 
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
