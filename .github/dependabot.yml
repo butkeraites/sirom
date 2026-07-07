@@ -1,0 +1,23 @@
+# Dependabot configuration.
+# Enables version-update PRs and re-scans the dependency graph, which also
+# auto-closes stale security alerts once fixes have landed on the default branch.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
