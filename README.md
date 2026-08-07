@@ -1,7 +1,7 @@
 # SIROM — Simulation-based Robust Optimization Method
 
 [![CI](https://github.com/butkeraites/sirom/actions/workflows/ci.yml/badge.svg)](https://github.com/butkeraites/sirom/actions/workflows/ci.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](pyproject.toml)
 
 **Robust optimization under uncertainty — without having to pick an uncertainty
@@ -254,4 +254,4 @@ If you use SIROM in academic work, please cite:
 
 ## License
 
-[GNU General Public License v3.0](LICENSE).
+[MIT License](LICENSE).

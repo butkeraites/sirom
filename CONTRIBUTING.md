@@ -95,5 +95,5 @@ For API issues, include the request body and the job response.
 
 ## License
 
-SIROM is licensed under the [GNU GPL v3.0](LICENSE). By contributing, you agree
+SIROM is licensed under the [MIT License](LICENSE). By contributing, you agree
 that your contributions are licensed under the same terms.
