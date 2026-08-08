@@ -24,6 +24,9 @@ api = [
     "pydantic==2.13.4",
     "redis==8.0.0",
 ]
+vrp = [
+    "httpx",
+]
 dev = [
     "pytest",
     "mypy",

@@ -18,8 +18,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-import cvrp
-import vrprep
+# Importable both as a package (`demo.vrp.backend.app`, how the combined
+# service mounts it) and as a flat script from this directory (how the
+# standalone Dockerfile next to this file runs it).
+try:
+    from . import cvrp, vrprep
+except ImportError:  # pragma: no cover - standalone execution
+    import cvrp
+    import vrprep
 
 app = FastAPI(title="SIROM — Robust CVRP Demo (VRP-REP)")
 

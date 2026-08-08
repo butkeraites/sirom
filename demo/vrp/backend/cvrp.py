@@ -41,7 +41,10 @@ from typing import Dict, List, Tuple
 
 import httpx
 
-from vrprep import Instance
+try:
+    from .vrprep import Instance
+except ImportError:  # pragma: no cover - standalone execution from this directory
+    from vrprep import Instance
 
 SIROM_API_URL = os.getenv("SIROM_API_URL", "http://sirom-api:8000").rstrip("/")
 SOLVE_TIMEOUT = float(os.getenv("VRP_SOLVE_TIMEOUT", "300"))
