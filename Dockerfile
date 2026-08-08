@@ -41,7 +41,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
     # other inside a 1-vCPU container. One thread each is measurably faster here.
     OMP_NUM_THREADS=1 \
     OPENBLAS_NUM_THREADS=1 \
-    MKL_NUM_THREADS=1
+    MKL_NUM_THREADS=1 \
+    # The routing surface reaches the solver over HTTP — it was built as a
+    # separate service. In this combined image that is a loopback call to
+    # ourselves; the default points at a docker-compose hostname that does not
+    # exist here.
+    SIROM_API_URL=http://127.0.0.1:8080
 
 COPY --from=builder /opt/venv /opt/venv
 

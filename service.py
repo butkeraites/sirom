@@ -35,15 +35,21 @@ log = logging.getLogger("sirom.service")
 
 # ------------------------------------------------------------------ limits
 
-# Sized from measurement, not intuition: 800 scenarios across 10 clusters solves
-# in about 0.28 s, so these ceilings sit well below anything that would occupy
-# the container long enough to matter.
+# These bound the SHAPE of a request. The bound that matters is SIROM's own
+# cell budget — scenarios x variables x constraints <= 5,000,000 — which limits
+# actual work rather than dimensions, and which the solver enforces itself. At
+# that ceiling a solve costs about 4-5 s on a laptop.
+#
+# The per-dimension caps are set to match what the routing surface generates
+# internally (cvrp.py caps itself at 200 variables and 500 constraints). Tighter
+# values rejected the service's own loopback calls, which is how this was found.
 LIMITS = {
     "max_scenarios": 1000,
     "max_clusters": 16,
-    "max_variables": 40,
-    "max_constraints": 60,
-    "max_body_bytes": 1_000_000,
+    "max_variables": 200,
+    "max_constraints": 500,
+    "max_body_bytes": 4_000_000,
+    "cell_budget": 5_000_000,
 }
 
 ALLOWED_ORIGINS = [
@@ -180,7 +186,15 @@ def limits() -> dict[str, Any]:
         **LIMITS,
         "note": ("Requests beyond these are rejected with the full list of "
                  "violations, never silently truncated."),
-        "measured": "800 scenarios x 10 clusters solves in about 0.28 s",
+        "measured": (
+            "800 scenarios x 10 clusters on a small problem: about 0.28 s. "
+            "At the 5,000,000-cell budget: about 4-5 s."
+        ),
+        "binding_constraint": (
+            "scenarios x variables x constraints must not exceed cell_budget; "
+            "the solver enforces this itself and it is stricter than the "
+            "per-dimension caps for anything large."
+        ),
     }
 
 
