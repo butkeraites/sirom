@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -216,6 +216,14 @@ class SolveSummary(BaseModel):
         ..., description="Highest feasibility probability among candidates."
     )
     runtime_seconds: float
+    phase_seconds: Dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Wall-clock seconds per pipeline phase: scenario_solves, "
+            "clustering, cluster_resolves, quality_scoring. Useful because the "
+            "split is rarely where you would guess."
+        ),
+    )
 
 
 class SolveResponse(BaseModel):

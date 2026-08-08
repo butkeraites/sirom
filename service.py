@@ -184,6 +184,79 @@ def limits() -> dict[str, Any]:
     }
 
 
+# --------------------------------------------------------- portfolio surface
+
+# Declared here rather than mounting demo/app.py, which also serves a static
+# index page this image does not ship. Thin wrappers keep the request ceiling
+# in one place.
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+
+class AssetIn(BaseModel):
+    name: str = Field(max_length=40)
+    return_low: float = Field(ge=-1.0, le=5.0)
+    return_high: float = Field(ge=-1.0, le=5.0)
+    risk: float = Field(gt=0.0, le=10.0)
+    cap: float = Field(default=0.5, gt=0.0, le=1.0)
+
+
+class PortfolioRequest(BaseModel):
+    target_return: float = Field(default=0.10, ge=0.0, le=1.0)
+    number_of_scenarios: int = Field(default=120, ge=20, le=1000)
+    assets: list[AssetIn] = Field(default_factory=list, max_length=12)
+    uncertainty_scale: float = Field(
+        default=1.0, ge=0.25, le=3.0,
+        description=(
+            "Widens or narrows every asset's return interval about its midpoint. "
+            "1.0 leaves the intervals as given."
+        ),
+    )
+
+
+@app.get("/portfolio/assets", tags=["portfolio"], summary="The default asset universe")
+def portfolio_assets() -> dict[str, Any]:
+    from demo.portfolio import DEFAULT_ASSETS
+    return {"assets": [
+        {"name": a.name, "return_low": a.return_low, "return_high": a.return_high,
+         "risk": a.risk, "cap": a.cap}
+        for a in DEFAULT_ASSETS
+    ]}
+
+
+@app.post("/portfolio/optimize", tags=["portfolio"],
+          summary="Risk / robustness frontier for a portfolio")
+def portfolio_optimize(req: PortfolioRequest) -> dict[str, Any]:
+    """Solve the robust portfolio problem and return its Pareto frontier.
+
+    Synchronous: the whole point of the demo is that a slider move produces an
+    answer, and at these sizes the solve is faster than a round of polling.
+    """
+    from demo.portfolio import DEFAULT_ASSETS, Asset, optimize
+
+    chosen = [Asset(a.name, a.return_low, a.return_high, a.risk, a.cap)
+              for a in req.assets] or list(DEFAULT_ASSETS)
+
+    if req.uncertainty_scale != 1.0:
+        k = req.uncertainty_scale
+        widened = []
+        for a in chosen:
+            mid = (a.return_low + a.return_high) / 2
+            half = (a.return_high - a.return_low) / 2 * k
+            widened.append(Asset(a.name, mid - half, mid + half, a.risk, a.cap))
+        chosen = widened
+
+    started = time.perf_counter()
+    out = optimize(chosen, req.target_return, req.number_of_scenarios)
+    out["wall_seconds"] = round(time.perf_counter() - started, 4)
+    out["uncertainty_scale"] = req.uncertainty_scale
+    out["intervals"] = [
+        {"name": a.name, "low": a.return_low, "high": a.return_high,
+         "risk": a.risk, "cap": a.cap} for a in chosen
+    ]
+    return out
+
+
 # --------------------------------------------------------------------- MCP
 
 MCP_PROTOCOL = "2025-06-18"

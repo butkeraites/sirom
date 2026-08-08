@@ -77,6 +77,7 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
     """
     opts = request.options
     started = time.time()
+    phase_seconds: Dict[str, float] = {}
     log_buffer = io.StringIO()
 
     try:
@@ -105,10 +106,24 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
             if has_errors(bucket.status):
                 raise SolveError(friendly_messages(bucket.status))
 
+            # Timed individually because the split is not what anyone expects:
+            # on typical instances the clustering costs more than every scenario
+            # LP put together. Reporting only a total hides that.
+            _t = time.perf_counter()
             bucket.solve()
+            phase_seconds["scenario_solves"] = time.perf_counter() - _t
+
+            _t = time.perf_counter()
             bucket.cluster_and_selection()
+            phase_seconds["clustering"] = time.perf_counter() - _t
+
+            _t = time.perf_counter()
             bucket.solve_cluster_tree()
+            phase_seconds["cluster_resolves"] = time.perf_counter() - _t
+
+            _t = time.perf_counter()
             bucket.apply_quality_measure(number_of_scenarios=opts.quality_scenarios)
+            phase_seconds["quality_scoring"] = time.perf_counter() - _t
     except SolveError:
         raise
     except Exception as exc:  # noqa: BLE001 - convert any run failure to safe text
@@ -174,6 +189,7 @@ def solve_problem(request: SolveRequest) -> SolveResponse:
         ),
         candidate_solutions=len(solutions),
         best_feasibility=max((s.feasibility_probability for s in solutions), default=0.0),
+        phase_seconds={k: round(v, 6) for k, v in phase_seconds.items()},
         runtime_seconds=round(time.time() - started, 4),
     )
 
