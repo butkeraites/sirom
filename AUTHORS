@@ -1,0 +1,35 @@
+SIROM — authorship and copyright
+
+Copyright (c) 2020-2026 Renan Brito Cano Butkeraites
+
+All commits in this repository were authored by Renan Brito Cano Butkeraites.
+Four git identities appear in the history because the configured address
+changed over the years; they are all the same person:
+
+    renan@fresh-codes.com
+    rbritobut@gmail.com
+    rbritobut?@gmail.com          (malformed; holds the initial commit)
+    renan.butkeraites@nitryx.com
+
+A fifth identity, dependabot[bot], appears on dependency-bump commits that
+carry no copyrightable expression.
+
+The commit that relicensed this project from GPL-3.0 to MIT gave the count as
+"104 commits" across three identities. Both figures were wrong: the history
+holds roughly 124 human commits across the four identities listed above. This
+file is the correct record; the commit message cannot be edited without
+rewriting published history.
+
+SCOPE OF THE MIT LICENCE
+
+The MIT licence in LICENSE covers the source code in this repository.
+
+It conveys no rights in the paper that describes the method:
+
+    R. B. C. Butkeraites, L. L. de Salles Neto and M. Gendreau,
+    "A sampling-based multi-objective iterative robust optimization method
+    for the Bandwidth Packing Problem", Expert Systems with Applications,
+    203:117337, 2022. doi:10.1016/j.eswa.2022.117337
+
+That paper is copyright its publisher and is co-authored with two people who
+are not parties to this licence. Cite the paper; the code is MIT.
