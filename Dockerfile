@@ -24,7 +24,9 @@ COPY pyproject.toml README.md ./
 COPY sirom ./sirom
 COPY demo ./demo
 
-RUN pip install --no-cache-dir '.[api]'
+# The vrp extra carries httpx, which the routing surface imports. Without
+# it that surface degrades to unavailable and /vrp/* returns 404.
+RUN pip install --no-cache-dir '.[api,vrp]'
 
 # Precompile everything now, so the first request does not pay for it.
 RUN python -m compileall -q /opt/venv/lib/python3.11/site-packages || true

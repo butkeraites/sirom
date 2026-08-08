@@ -160,11 +160,17 @@ async def guard(request: Request, call_next):
     return response
 
 
-@app.get("/healthz", tags=["meta"], summary="Liveness probe and warm-up hook")
-def healthz() -> dict[str, Any]:
+@app.get("/status", tags=["meta"], summary="Liveness probe and warm-up hook")
+def status() -> dict[str, Any]:
     """The site pings this on page load, so the container is already running by
     the time a visitor moves a slider. That is what makes min-instances=0
-    invisible rather than merely cheap."""
+    invisible rather than merely cheap.
+
+    Named /status rather than /healthz because Google Frontend intercepts
+    /healthz ahead of Cloud Run and answers it with its own HTML 404 — the
+    request never reaches the container. The solver API's own /health also
+    works and is the lighter warm-up target.
+    """
     return {"status": "ok", "service": "sirom", "version": app.version}
 
 
